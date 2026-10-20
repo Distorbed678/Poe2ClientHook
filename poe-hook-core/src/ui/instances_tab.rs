@@ -26,7 +26,7 @@ impl InstancesView {
         if !me.as_ref().is_some_and(|m| m.admin) {
             ui.text_colored(
                 [1.0, 0.6, 0.4, 1.0],
-                "Your account is not in [admin] accounts: the server refuses these commands.",
+                "Your account does not have the admin role: the server refuses these commands.",
             );
         }
         ui.text(format!(
