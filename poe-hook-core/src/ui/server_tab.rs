@@ -7,7 +7,6 @@ use imgui::Ui;
 pub struct ServerView {
     tx: i32,
     ty: i32,
-    turn_cell: usize,
     seconds: i32,
 }
 
@@ -16,7 +15,6 @@ impl ServerView {
         Self {
             tx: 0,
             ty: 0,
-            turn_cell: 2,
             seconds: 10,
         }
     }
@@ -28,7 +26,7 @@ impl ServerView {
         }
         let Some((age, values)) = crate::devlink::state() else {
             ui.text_disabled(
-                "No state from the server yet (needs position sync and [instance] debug_link).",
+                "No state from the server yet (needs position sync and [dev] debug_link).",
             );
             return;
         };
@@ -50,28 +48,6 @@ impl ServerView {
                 self.tx = p.grid.0;
                 self.ty = p.grid.1;
             }
-        }
-        ui.set_next_item_width(160.0);
-        if ui.combo_simple_string(
-            "turn cell",
-            &mut self.turn_cell,
-            &["own", "heading", "natural"],
-        ) {
-            let mode = ["own", "heading", "natural"][self.turn_cell];
-            crate::devlink::command(&format!("turn_cell {mode}"));
-        }
-        let get = |k: &str| values.iter().find(|(n, _)| n == k).map(|(_, v)| v.as_str());
-        let mut timing = get("turn_timing") == Some("true");
-        if ui.checkbox("turn timing", &mut timing) {
-            crate::devlink::command(&format!(
-                "turn_timing {}",
-                if timing { "on" } else { "off" }
-            ));
-        }
-        ui.same_line();
-        let mut face = get("face_cursor") == Some("true");
-        if ui.checkbox("face cursor", &mut face) {
-            crate::devlink::command(&format!("face_cursor {}", if face { "on" } else { "off" }));
         }
         ui.separator();
         if let Some(_t) = ui.begin_table_header_with_flags(
