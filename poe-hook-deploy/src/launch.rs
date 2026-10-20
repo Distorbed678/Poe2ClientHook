@@ -8,7 +8,37 @@ use std::{
 
 use anyhow::{Context, Result, bail};
 
-use crate::{CLIENT_EXE, STEAM_APPID};
+use crate::{CLIENT_EXE, HOOK_CONFIG, STEAM_APPID, hook_config::top_level_string};
+
+/// Arguments that make a standalone-login client skip its built-in patcher.
+///
+/// Without Steam the client believes it was started by the standalone patcher launcher: it
+/// first opens the patcher window and connects to GGG's patch servers
+/// (`us.patch.pathofexile2.com`, ...). The patcher normally starts the real client with
+/// `--success-event <inherited event handle>`; a client started with that option (and without
+/// `--disable-client-switching`) skips the patcher (`FUN_1401162d0` in docs/re/standalone-login.md).
+/// The event is only signalled and closed at the end of start-up (`SetEvent`/`CloseHandle` on
+/// handle `0`, which just fail), so `0` is a safe dummy.
+pub const STANDALONE_CLIENT_ARGS: [&str; 2] = ["--success-event", "0"];
+
+/// Extra client arguments for the installation in `game_dir`, from its `poe-hook.toml`:
+/// [`STANDALONE_CLIENT_ARGS`] when `login_mode = "standalone"` and the mode is not official.
+pub fn client_args(game_dir: &Path) -> Vec<String> {
+    let Ok(text) = std::fs::read_to_string(game_dir.join(HOOK_CONFIG)) else {
+        return Vec::new();
+    };
+    client_args_for(&text)
+}
+
+fn client_args_for(config_text: &str) -> Vec<String> {
+    let official = top_level_string(config_text, "mode").as_deref() == Some("official");
+    let standalone = top_level_string(config_text, "login_mode").as_deref() == Some("standalone");
+    if standalone && !official {
+        STANDALONE_CLIENT_ARGS.map(str::to_owned).to_vec()
+    } else {
+        Vec::new()
+    }
+}
 
 #[derive(Debug, Clone)]
 pub struct ProtonLaunch {
@@ -44,6 +74,7 @@ impl ProtonLaunch {
         let mut cmd = Command::new(proton_bin);
         cmd.arg("run")
             .arg(game.join(CLIENT_EXE))
+            .args(client_args(&game))
             .current_dir(&game)
             .env("STEAM_COMPAT_CLIENT_INSTALL_PATH", &self.steam_root)
             .env("STEAM_COMPAT_DATA_PATH", &self.prefix_dir)
@@ -117,6 +148,33 @@ mod tests {
         let moved = quarantine_crash_dumps(&prefix, &target).unwrap();
         assert_eq!(moved, vec![target.join("PoE-1.dmp")]);
         assert!(dir.join("keep.txt").exists());
+    }
+
+    #[test]
+    fn standalone_adds_the_patcher_skip_option() {
+        let args = |t: &str| client_args_for(t);
+        let skip = vec!["--success-event".to_owned(), "0".to_owned()];
+        assert_eq!(
+            args("mode = \"private\"\nlogin_mode = \"standalone\"\n"),
+            skip
+        );
+        assert_eq!(args("login_mode = \"standalone\"\n"), skip);
+        assert!(args("mode = \"private\"\nlogin_mode = \"steam\"\n").is_empty());
+        assert!(args("mode = \"private\"\n").is_empty());
+        // Official mode never gets standalone behaviour.
+        assert!(args("mode = \"official\"\nlogin_mode = \"standalone\"\n").is_empty());
+    }
+
+    #[test]
+    fn missing_config_adds_nothing() {
+        let tmp = tempfile::tempdir().unwrap();
+        assert!(client_args(tmp.path()).is_empty());
+        std::fs::write(
+            tmp.path().join(HOOK_CONFIG),
+            "login_mode = \"standalone\"\n",
+        )
+        .unwrap();
+        assert_eq!(client_args(tmp.path()), ["--success-event", "0"]);
     }
 
     #[test]

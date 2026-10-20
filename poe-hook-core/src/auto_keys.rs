@@ -41,9 +41,9 @@ use windows_sys::Win32::{
             RAWINPUT, RAWINPUTHEADER, RID_HEADER, RID_INPUT, RIM_TYPEKEYBOARD,
         },
         WindowsAndMessaging::{
-            EnumWindows, GetWindowThreadProcessId, IsWindowVisible, PostMessageW, RI_KEY_BREAK,
-            RI_KEY_MAKE, WM_ACTIVATEAPP, WM_CHAR, WM_CLOSE, WM_INPUT, WM_KEYDOWN, WM_KEYUP,
-            WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
+            EnumWindows, GetClassNameW, GetWindowThreadProcessId, IsWindowVisible, PostMessageW,
+            RI_KEY_BREAK, RI_KEY_MAKE, WM_ACTIVATEAPP, WM_CHAR, WM_CLOSE, WM_INPUT, WM_KEYDOWN,
+            WM_KEYUP, WM_LBUTTONDOWN, WM_LBUTTONUP, WM_MOUSEMOVE,
         },
     },
 };
@@ -257,7 +257,8 @@ type CreateWindowExWFn = unsafe extern "system" fn(
     *const core::ffi::c_void,
 ) -> usize;
 
-/// Replaces the title of the game's windows with the test title.
+/// Replaces the title of the game's main window (class `POEWindowClass`) with the test title;
+/// other windows (message boxes, the patcher) keep theirs.
 unsafe extern "win64" fn on_create_window(
     regs: *mut Registers,
     original: usize,
@@ -265,8 +266,9 @@ unsafe extern "win64" fn on_create_window(
 ) -> usize {
     let _guard = crate::hook_guard!("auto_keys::on_create_window");
     let r = unsafe { &*regs };
+    let is_game = unsafe { poe_hook_shared::window::is_game_window_class_ptr(r.rdx as *const u16) };
     let title = match WINDOW_TITLE.get() {
-        Some(t) if r.r8 != 0 => t.as_ptr(),
+        Some(t) if r.r8 != 0 && is_game => t.as_ptr(),
         _ => r.r8 as *const u16,
     };
     let f: CreateWindowExWFn = unsafe { std::mem::transmute(original) };
@@ -297,9 +299,13 @@ unsafe extern "win64" fn on_set_window_text(
 ) -> usize {
     let _guard = crate::hook_guard!("auto_keys::on_set_window_text");
     let r = unsafe { &*regs };
-    let title = WINDOW_TITLE
-        .get()
-        .map_or(r.rdx as *const u16, |t| t.as_ptr());
+    let mut class = [0u16; poe_hook_shared::window::MAX_CLASS_UNITS];
+    let len = unsafe { GetClassNameW(r.rcx as HWND, class.as_mut_ptr(), class.len() as i32) };
+    let is_game = len > 0 && poe_hook_shared::window::is_game_window_class(&class[..len as usize]);
+    let title = match WINDOW_TITLE.get() {
+        Some(t) if is_game => t.as_ptr(),
+        _ => r.rdx as *const u16,
+    };
     let f: SetWindowTextWFn = unsafe { std::mem::transmute(original) };
     unsafe { f(r.rcx as usize, title) as usize }
 }

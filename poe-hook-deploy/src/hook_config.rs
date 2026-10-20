@@ -13,6 +13,31 @@ pub fn set_hook_key(path: &Path, table: Option<&str>, key: &str, value: &str) ->
     Ok(())
 }
 
+/// The string value of top-level `key` (before the first `[table]`) in `text`; `None` if the
+/// key is missing or not a quoted string. Comments and other tables are ignored.
+pub fn top_level_string(text: &str, key: &str) -> Option<String> {
+    for line in text.lines() {
+        let line = line.trim();
+        if line.starts_with('[') {
+            break;
+        }
+        if line.starts_with('#') {
+            continue;
+        }
+        let Some((k, v)) = line.split_once('=') else {
+            continue;
+        };
+        if k.trim() != key {
+            continue;
+        }
+        let v = v.split('#').next().unwrap_or("").trim();
+        let quote = v.chars().next().filter(|c| *c == '"' || *c == '\'')?;
+        let rest = &v[1..];
+        return rest.find(quote).map(|end| rest[..end].to_owned());
+    }
+    None
+}
+
 pub(crate) fn set_key_in_text(text: &str, table: Option<&str>, key: &str, value: &str) -> String {
     let line = format!("{key} = {value}");
     let mut lines: Vec<String> = text.lines().map(str::to_owned).collect();
@@ -73,6 +98,18 @@ mod tests {
     use super::*;
 
     const SAMPLE: &str = "# comment\n\nmode = \"private\"\n\n[log]\nlevel = \"debug\"\n\n[features]\n# note\nauto_keys = [\"x\"]\n";
+
+    #[test]
+    fn reads_top_level_strings() {
+        let t = "# c\nmode = \"private\"  # why\nlogin_mode = 'standalone'\n[log]\nlogin_mode = \"steam\"\n";
+        assert_eq!(top_level_string(t, "mode").as_deref(), Some("private"));
+        assert_eq!(
+            top_level_string(t, "login_mode").as_deref(),
+            Some("standalone")
+        );
+        assert_eq!(top_level_string(t, "missing"), None);
+        assert_eq!(top_level_string("[log]\nmode = \"x\"\n", "mode"), None);
+    }
 
     #[test]
     fn replaces_existing_top_level_key() {

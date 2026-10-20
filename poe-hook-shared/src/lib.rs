@@ -7,6 +7,7 @@ pub mod login;
 pub mod mem;
 pub mod module;
 pub mod trust;
+pub mod window;
 
 use std::path::PathBuf;
 
