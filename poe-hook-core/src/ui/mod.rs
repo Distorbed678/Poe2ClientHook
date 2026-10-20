@@ -43,9 +43,11 @@ pub fn has_notices() -> bool {
 }
 
 /// Whether features that talk to our server are shown: never while the read-only latch is on
-/// (an official server), so nothing in the overlay can send to it.
+/// (an official server), and only while every connection the game made is trusted (loopback
+/// or `trusted_servers`, `poe_hook_shared::trust`), so nothing in the overlay can send to an
+/// official server. The latch already covers the second condition; it is checked again here.
 pub fn custom_server() -> bool {
-    !crate::host::read_only()
+    !crate::host::read_only() && crate::host::connections().iter().all(|c| c.trusted())
 }
 
 /// Plain-text summary of the client state (snapshots).

@@ -86,6 +86,10 @@ pub unsafe extern "C" fn poe_core_start(host: *const HostApi) -> *const CoreApi 
     }));
     let loaded = Config::load(&poe_hook_shared::exe_dir().join("poe-hook.toml"));
     log::set_max_level(loaded.log.level);
+    // The core has its own copy of the trust list (the loader's statics are not shared).
+    for e in poe_hook_shared::trust::set_trusted_servers(&loaded.trusted_servers) {
+        log::error!("trusted_servers: ignored entry {e}");
+    }
     CONFIG.set(loaded).ok();
     log::info!(
         "debug core {} started (load #{}, read-only {})",

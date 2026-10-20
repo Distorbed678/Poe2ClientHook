@@ -65,8 +65,9 @@ unsafe extern "win64" fn on_verify_and_derive(
 ) -> usize {
     let _guard = crate::hook_guard!("crypto_bypass::on_verify_and_derive");
     let r = unsafe { &*regs };
-    // Official servers (read-only): the real handshake.
-    if crate::host::read_only() {
+    // Official servers (read-only, or any untrusted connection): the real handshake. Trusted
+    // servers (loopback or `trusted_servers`) never switch the latch on, so they get the bypass.
+    if crate::host::read_only() || !crate::ui::custom_server() {
         type VerifyFn = unsafe extern "win64" fn(u64, u64, u64) -> usize;
         let f: VerifyFn = unsafe { std::mem::transmute(original) };
         return unsafe { f(r.rcx, r.rdx, r.r8) };

@@ -11,6 +11,15 @@ use serde::Deserialize;
 pub struct Config {
     /// `private` (our server) or `official` (read-only: see [`Mode`]).
     pub mode: Mode,
+    /// Which login screen and flow the client uses (private mode): `standalone` (account name
+    /// and password, `LoginScreen.ui`; the loader patches `ClientPlatform_Detect`) or `steam`
+    /// (the unmodified client). Always `steam` in official mode: see [`Config::load`].
+    pub login_mode: LoginMode,
+    /// Servers treated like loopback: `"ip:port"`, `"ip:*"` or `"ip"` (IPv4 literals). A
+    /// connection to one is neither refused nor does it switch the read-only latch on, and
+    /// the crypto bypass applies to it. Loopback is always trusted. Always empty in official
+    /// mode. See [`crate::trust`].
+    pub trusted_servers: Vec<String>,
     /// Where datamined/generated outputs go (terrain grids and layouts, area exports,
     /// object-type and tile tables): `<dump_dir>/terrain/grids/`, `terrain/layouts/`,
     /// `terrain/area-exports/<session>/`, `client-tables/`. A path the game process can open
@@ -36,6 +45,26 @@ pub enum Mode {
     /// Official servers, read-only: nothing is sent, altered or injected; the DLL only
     /// observes and logs. External connections are allowed.
     Official,
+}
+
+/// `login_mode` in `poe-hook.toml`.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "lowercase")]
+pub enum LoginMode {
+    /// Account name and password (or a remembered token) on `LoginScreen.ui`.
+    #[default]
+    Standalone,
+    /// The client as shipped: Steam login screen and app ticket.
+    Steam,
+}
+
+impl LoginMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LoginMode::Standalone => "standalone",
+            LoginMode::Steam => "steam",
+        }
+    }
 }
 
 #[derive(Debug, Clone, Deserialize)]
@@ -174,10 +203,26 @@ impl Default for ReloadConfig {
 }
 
 impl Config {
+    /// Parses the file text and applies the official-mode rules ([`Config::normalize`]).
+    pub fn from_toml(text: &str) -> Result<Self, toml::de::Error> {
+        let mut config: Self = toml::from_str(text)?;
+        config.normalize();
+        Ok(config)
+    }
+
+    /// Official mode overrides: `login_mode` is `steam` (no patch at all) and no server is
+    /// trusted beyond loopback, whatever the file says.
+    pub fn normalize(&mut self) {
+        if self.official() {
+            self.login_mode = LoginMode::Steam;
+            self.trusted_servers.clear();
+        }
+    }
+
     pub fn load(path: &Path) -> Self {
         let mut config: Self = std::fs::read_to_string(path)
             .ok()
-            .and_then(|text| toml::from_str(&text).ok())
+            .and_then(|text| Self::from_toml(&text).ok())
             .unwrap_or_default();
         if let Ok(keys) = std::env::var("POE_HOOK_AUTO_KEYS") {
             config
@@ -198,5 +243,46 @@ impl Config {
     /// Official mode: everything that could change the game is off from the start.
     pub fn official(&self) -> bool {
         self.mode == Mode::Official
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn defaults_are_private_and_standalone() {
+        let c = Config::from_toml("").unwrap();
+        assert_eq!(c.mode, Mode::Private);
+        assert_eq!(c.login_mode, LoginMode::Standalone);
+        assert!(c.trusted_servers.is_empty());
+    }
+
+    #[test]
+    fn private_mode_reads_login_mode_and_trusted_servers() {
+        let c = Config::from_toml(
+            "mode = \"private\"\nlogin_mode = \"steam\"\ntrusted_servers = [\"192.168.1.20:20481\", \"192.168.1.20:6112\"]\n",
+        )
+        .unwrap();
+        assert_eq!(c.login_mode, LoginMode::Steam);
+        assert_eq!(c.trusted_servers.len(), 2);
+    }
+
+    #[test]
+    fn official_mode_forces_steam_and_drops_trusted_servers() {
+        let c = Config::from_toml(
+            "mode = \"official\"\nlogin_mode = \"standalone\"\ntrusted_servers = [\"8.8.8.8:443\"]\n",
+        )
+        .unwrap();
+        assert!(c.official());
+        assert_eq!(c.login_mode, LoginMode::Steam);
+        assert!(c.trusted_servers.is_empty());
+    }
+
+    #[test]
+    fn the_shipped_template_parses() {
+        let c = Config::from_toml(include_str!("../../poe-hook/poe-hook.toml")).unwrap();
+        assert_eq!(c.mode, Mode::Private);
+        assert_eq!(c.login_mode, LoginMode::Standalone);
     }
 }

@@ -3,8 +3,10 @@
 
 pub mod abi;
 pub mod config;
+pub mod login;
 pub mod mem;
 pub mod module;
+pub mod trust;
 
 use std::path::PathBuf;
 

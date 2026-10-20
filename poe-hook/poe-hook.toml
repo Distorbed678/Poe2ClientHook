@@ -13,6 +13,19 @@
 # altered or injected. Set by `cargo xtask deploy-client [--official]`.
 mode = "private"
 
+# standalone: the account-name + password login screen (and remembered-login token) of the
+# client instead of the Steam login. The loader patches the client's platform detection before
+# its first use (docs/re/standalone-login.md); needs no Steam. steam: the client as shipped.
+# Always "steam" in official mode, whatever is written here. Set by `cargo xtask deploy-client`.
+login_mode = "standalone"
+
+# Servers treated like loopback (127.0.0.0/8 is always trusted): connections to them are not
+# refused by block_external, do not switch the read-only latch on, and get the crypto bypass.
+# Entries are IPv4 literals: "ip:port", "ip:*" (any port) or "ip". One entry per port the client
+# connects to (login and instance server). Anything else is an official/external server and stays
+# read-only. Always empty in official mode. Written by `cargo xtask deploy-client`.
+trusted_servers = []
+
 [log]
 # error | warn | info | debug | trace
 level = "debug"

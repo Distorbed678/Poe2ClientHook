@@ -1,11 +1,12 @@
 //! Network guard (installed in `DllMain`, before the game runs: its crash-report helper
 //! connects out within milliseconds): hooks `connect` / `WSAConnect` to
 //!
-//! - refuse non-loopback connections in private mode with `block_external`, which keeps a
-//!   client pointed at our server away from official services (shop, telemetry, crash upload);
-//! - set the **read-only latch** the first time an external connection goes through (official
-//!   play), or from the start in official mode. Read-only means the core sends, alters and
-//!   injects nothing; it only observes;
+//! - refuse *untrusted* connections in private mode with `block_external`, which keeps a
+//!   client pointed at our server away from official services (shop, telemetry, crash upload).
+//!   Trusted means loopback or an entry of `trusted_servers` (`poe_hook_shared::trust`);
+//! - set the **read-only latch** the first time an untrusted ("external") connection goes
+//!   through (official play), or from the start in official mode. Read-only means the core
+//!   sends, alters and injects nothing; it only observes. Trusted connections never latch;
 //! - record every connection (the core's packet capture and position sync use the table).
 
 use std::{
@@ -117,8 +118,10 @@ unsafe extern "win64" fn on_connect(regs: *mut Registers, original: usize, _: us
         ip = unsafe { a.sin_addr.S_un.S_addr }.to_ne_bytes();
         port = u16::from_be(a.sin_port);
     }
-    // IPv6 and others count as external.
-    let external = !name.is_null() && !(ipv4 && ip[0] == 127);
+    // One decision for the whole hook: loopback or `trusted_servers` is ours, everything
+    // else (IPv6 and other families included) is external.
+    let external = !name.is_null() && !(ipv4 && poe_hook_shared::trust::is_trusted_v4(ip, port));
+    let trusted_remote = ipv4 && !external && ip[0] != 127;
     let target = format!("{}.{}.{}.{}:{port}", ip[0], ip[1], ip[2], ip[3]);
     if external && BLOCK_EXTERNAL.load(Ordering::SeqCst) {
         log::warn!(
@@ -134,7 +137,13 @@ unsafe extern "win64" fn on_connect(regs: *mut Registers, original: usize, _: us
     let seq = SEQ.fetch_add(1, Ordering::SeqCst) + 1;
     log::info!(
         "connect #{seq} sock={sock} {target}{} stack=[{}]",
-        if external { " (external)" } else { "" },
+        if external {
+            " (external)"
+        } else if trusted_remote {
+            " (trusted server)"
+        } else {
+            ""
+        },
         backtrace(r.rsp)
     );
     if !name.is_null() {

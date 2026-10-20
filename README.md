@@ -57,6 +57,8 @@ deploy(&DeployOptions {
     gateway: Some(GatewayEntry { region, display_name, host, port }),
     position_sync_port: Some(20482),
     dump_dir: Some(dumps),             // written to poe-hook.toml as a path the client can read (Z:\... under Wine)
+    login_mode: LoginMode::Standalone, // `login_mode`; Mode::Official always writes "steam"
+    trusted_servers: vec!["192.168.1.20:20481".into(), "192.168.1.20:6112".into()], // host:port, names resolved to IPv4; Official: empty
 })?;
 deploy_core(&game_dir, &dll_dir)?;     // only the core; a running client reloads it
 revert(&game_dir)?;                    // restores gateway_list.txt, removes installed files
@@ -65,8 +67,28 @@ ProtonLaunch { steam_root, proton: "Proton - Experimental".into(), prefix_dir, g
                crash_dump_dir: Some(dir) }.launch()?;
 ```
 
-Also public: `set_hook_key`, `hook_path`, `gateway::select_gateway_in_prefix`, `launch::quarantine_crash_dumps`,
+Launcher auto-login (standalone client): `write_login_token(prefix_or_documents_dir, account, token: [u8; 32])`
+writes the remember-me token file `Documents/My Games/Path of Exile 2/poe2_production_login.credentials` and sets
+`[LOGIN] username=<account>` and `save_login=true` in `poe2_production_Config.ini` there. `write_login_token_with` takes
+`LoginTokenFiles` (credentials/ini file names, section and key names) because the file name is the RE's best reading
+(`<config name>_login.credentials`; `config.json` can override it with `GGG_CREDENTIAL_FILE_NAME`) and was not yet seen on
+disk. The client reads both files itself, so the DLL needs no code: with an empty password box, Login sends the token
+(`0x0003`, `token_login = 1`). `login_token::parse_token_hex` reads 64 hex digits.
+
+Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::select_gateway_in_prefix`, `launch::quarantine_crash_dumps`,
 `backup_once`, `install_file`.
+
+## `poe-hook.toml`: login and trust
+
+- `login_mode = "standalone" | "steam"` (default `standalone` in private mode; **always `steam` in official mode**, enforced
+  by the deploy and again when the DLL reads the file). `standalone` makes the loader (`version.dll`, in `DllMain`) patch
+  the client's `ClientPlatform_Detect` (`40 55 53` -> `31 C0 C3`, Ghidra `0x142196ec0`) so it shows the account-name and
+  password screen and sends `0x0003`. The original bytes are verified first (another build: patch skipped, error logged);
+  an already cached platform value (`0x144717118`, guard `0x144717114`) is reset to 0. Addresses: `poe-hook-shared/src/login.rs`.
+- `trusted_servers = ["ip:port", "ip:*", "ip"]` (IPv4 literals; loopback is always trusted; empty in official mode).
+  `poe_hook_shared::trust::is_trusted` is the one decision used by the network guard (refuse / latch), `Connection::external`
+  (`= !trusted`), the crypto bypass and the overlay's `custom_server()`. A trusted server is neither refused by
+  `block_external` nor latches read-only and gets the crypto bypass; every other remote stays read-only exactly as before.
 
 ## Rules
 

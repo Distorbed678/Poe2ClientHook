@@ -28,6 +28,12 @@ fn deploy_then_revert_restores_the_game_dir() {
         }),
         position_sync_port: Some(20482),
         dump_dir: Some(dumps),
+        login_mode: LoginMode::Standalone,
+        trusted_servers: vec![
+            "192.168.1.20:20481".into(),
+            "192.168.1.20:6112".into(),
+            "192.168.1.20:6112".into(),
+        ],
     };
     let report = deploy(&opts).unwrap();
     assert_eq!(
@@ -48,7 +54,12 @@ fn deploy_then_revert_restores_the_game_dir() {
     assert!(cfg.contains("mode = \"private\""));
     assert!(cfg.contains("position_sync_port = 20482"));
     assert!(cfg.contains("dump_dir = '"));
-    toml_parses(&cfg);
+    assert!(cfg.contains("login_mode = \"standalone\""));
+    assert!(cfg.contains("trusted_servers = [\"192.168.1.20:20481\", \"192.168.1.20:6112\"]"));
+    assert_eq!(report.trusted_servers.len(), 2);
+    let table = toml_parses(&cfg);
+    assert_eq!(table["login_mode"].as_str(), Some("standalone"));
+    assert_eq!(table["trusted_servers"].as_array().unwrap().len(), 2);
 
     // A second deploy keeps the pristine backup and the user's config edits.
     std::fs::write(
@@ -74,11 +85,13 @@ fn deploy_then_revert_restores_the_game_dir() {
     };
     deploy(&official).unwrap();
     assert_eq!(std::fs::read(game.join(GATEWAY_FILE)).unwrap(), b"original");
-    assert!(
-        std::fs::read_to_string(game.join(HOOK_CONFIG))
-            .unwrap()
-            .contains("mode = \"official\"")
-    );
+    let cfg = std::fs::read_to_string(game.join(HOOK_CONFIG)).unwrap();
+    assert!(cfg.contains("mode = \"official\""));
+    assert!(cfg.contains("login_mode = \"steam\""));
+    assert!(cfg.contains("trusted_servers = []"));
+    assert!(!cfg.contains("192.168.1.20"));
+    let table = toml_parses(&cfg);
+    assert_eq!(table["trusted_servers"].as_array().unwrap().len(), 0);
 
     revert(&game).unwrap();
     assert_eq!(std::fs::read(game.join(GATEWAY_FILE)).unwrap(), b"original");
@@ -102,12 +115,41 @@ fn deploy_core_replaces_only_the_core() {
 }
 
 /// The built-in template plus our edits must stay valid TOML.
-fn toml_parses(text: &str) {
-    text.parse::<toml::Table>().expect("valid TOML");
+fn toml_parses(text: &str) -> toml::Table {
+    text.parse::<toml::Table>().expect("valid TOML")
 }
 
 #[test]
 fn default_template_has_the_keys_we_set() {
     assert!(DEFAULT_HOOK_CONFIG.contains("mode = "));
     assert!(DEFAULT_HOOK_CONFIG.contains("[features]"));
+    assert!(DEFAULT_HOOK_CONFIG.contains("login_mode = "));
+    assert!(DEFAULT_HOOK_CONFIG.contains("trusted_servers = "));
+}
+
+#[test]
+fn private_deploy_can_switch_back_to_the_steam_login() {
+    let tmp = tempfile::tempdir().unwrap();
+    let game = tmp.path().join("game");
+    let dlls = tmp.path().join("dlls");
+    std::fs::create_dir_all(&game).unwrap();
+    std::fs::create_dir_all(&dlls).unwrap();
+    fake_build(&dlls);
+    let opts = DeployOptions {
+        game_dir: game.clone(),
+        dll_dir: dlls,
+        mode: Mode::Private,
+        gateway: None,
+        position_sync_port: None,
+        dump_dir: None,
+        login_mode: LoginMode::Steam,
+        trusted_servers: vec!["not an address:1".into()],
+    };
+    let report = deploy(&opts).unwrap();
+    assert_eq!(report.warnings.len(), 1);
+    let cfg = std::fs::read_to_string(game.join(HOOK_CONFIG)).unwrap();
+    assert!(cfg.contains("login_mode = \"steam\""));
+    assert!(cfg.contains("trusted_servers = []"));
+    // A hand-edited list is replaced by the deploy's, like `mode`.
+    toml_parses(&cfg);
 }

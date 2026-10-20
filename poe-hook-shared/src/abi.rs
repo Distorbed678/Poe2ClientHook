@@ -62,7 +62,8 @@ pub struct Connection {
     pub socket: u64,
     pub ip: [u8; 4],
     pub port: u16,
-    /// Not loopback: an official (or other external) server.
+    /// Not trusted: `!is_trusted(addr)` ([`crate::trust`]), i.e. neither loopback nor in
+    /// `trusted_servers`. An official (or other external) server.
     pub external: bool,
     /// Order of the connect calls (1, 2, ...).
     pub seq: u32,
@@ -93,6 +94,18 @@ pub struct VulkanState {
     pub present_family: i32,
 }
 
+impl Connection {
+    /// The destination as a socket address.
+    pub fn addr(&self) -> std::net::SocketAddr {
+        std::net::SocketAddr::new(std::net::Ipv4Addr::from(self.ip).into(), self.port)
+    }
+
+    /// The trust decision for this connection (what `external` was computed from).
+    pub fn trusted(&self) -> bool {
+        crate::trust::is_trusted(&self.addr())
+    }
+}
+
 impl Default for VulkanState {
     fn default() -> Self {
         unsafe { std::mem::zeroed() }
@@ -114,7 +127,7 @@ pub struct HostApi {
     pub log: extern "C" fn(level: u32, target: Str, message: Str),
     /// Visits the kept log records with `seq >= since`, oldest first; returns the next `seq`.
     pub logs_since: extern "C" fn(since: u64, ctx: *mut c_void, visit: LogVisit) -> u64,
-    /// The read-only latch: set in official mode or once an external server was connected.
+    /// The read-only latch: set in official mode or once an untrusted (external) server was connected.
     pub read_only: extern "C" fn() -> bool,
     /// Copies up to `max` recorded connections (newest last); returns how many were copied.
     pub connections: extern "C" fn(out: *mut Connection, max: usize) -> usize,

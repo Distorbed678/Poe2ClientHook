@@ -1,14 +1,15 @@
 //! poe-hook: the PoE2 client's companion DLL, loaded as `version.dll` (see [`proxy`]).
 //!
 //! This loader stays small and is never unloaded. In `DllMain` it reads `poe-hook.toml`, opens
-//! the logs (next to the exe and in this process's session folder `logs/poe-hook/<time>_<pid>/`)
-//! and installs the network guard (the client's crash-report helper connects out within
-//! milliseconds of starting). A thread then hooks Vulkan for the overlay and loads the debug
+//! the logs (next to the exe and in this process's session folder `logs/poe-hook/<time>_<pid>/`),
+//! installs the network guard (the client's crash-report helper connects out within
+//! milliseconds of starting) and applies the standalone-login patch ([`login_patch`]). A thread then hooks Vulkan for the overlay and loads the debug
 //! core (`poe_hook_core.dll`), which holds the features and the overlay and can be hot-reloaded
 //! ([`core`]).
 
 mod core;
 mod guard;
+mod login_patch;
 mod logsink;
 mod proxy;
 mod vulkan;
@@ -37,17 +38,35 @@ pub extern "system" fn DllMain(_module: HINSTANCE, reason: u32, _reserved: *mut 
             config.log.level,
         );
         log::info!(
-            "poe-hook {} loaded, mode {:?}, session {}",
+            "poe-hook {} loaded, mode {:?}, login_mode {:?}, session {}",
             env!("CARGO_PKG_VERSION"),
             config.mode,
+            config.login_mode,
             session.display()
         );
         let main = Module::main();
         log::info!("main module: base={:#x} size={:#x}", main.base, main.size);
+        // Config::load already emptied the list in official mode.
+        for e in poe_hook_shared::trust::set_trusted_servers(&config.trusted_servers) {
+            log::error!("trusted_servers: ignored entry {e}");
+        }
+        log::info!(
+            "trusted servers: loopback{}",
+            poe_hook_shared::trust::trusted_servers()
+                .iter()
+                .map(|t| match t.port {
+                    Some(p) => format!(", {}:{p}", t.ip),
+                    None => format!(", {}:*", t.ip),
+                })
+                .collect::<String>()
+        );
         match guard::init(&main, config.official(), config.features.block_external) {
             Ok(()) => log::info!("network guard: enabled"),
             Err(e) => log::error!("network guard: failed: {e}"),
         }
+        // Before the client's first platform query (its entry point runs after every static
+        // import, this DLL included, has been initialised).
+        login_patch::apply(&main, config.login_mode);
         std::thread::spawn(move || {
             logsink::flusher();
             if config.overlay.enabled {

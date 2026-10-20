@@ -9,16 +9,21 @@
 //!    original back for official servers ([`Mode::Official`], read-only);
 //! 2. installs `version.dll` (the loader) and `poe_hook_core.dll` (the hot-reloadable core);
 //! 3. creates `poe-hook.toml` from the built-in template if it does not exist yet (edits survive
-//!    redeploys) and sets `mode`, `position_sync_port`, `dump_dir`, `auto_keys` in it;
+//!    redeploys) and sets `mode`, `login_mode`, `trusted_servers`, `position_sync_port`,
+//!    `dump_dir`, `auto_keys` in it (official mode: `login_mode = "steam"` and no trusted
+//!    servers, whatever the options say);
 //! 4. writes `steam_appid.txt`.
 //!
-//! [`deploy_core`] installs only the core, [`revert`] undoes everything, and
-//! [`launch::ProtonLaunch`] starts the client through Proton.
+//! [`deploy_core`] installs only the core, [`revert`] undoes everything,
+//! [`launch::ProtonLaunch`] starts the client through Proton, and
+//! [`login_token::write_login_token`] signs a launcher account in without typing a password.
 
 pub mod gateway;
 pub mod hook_config;
 mod install;
 pub mod launch;
+pub mod login_token;
+mod trusted;
 
 use std::path::{Path, PathBuf};
 
@@ -27,6 +32,8 @@ use anyhow::{Context, Result};
 pub use gateway::GatewayEntry;
 pub use hook_config::{hook_path, set_hook_key};
 pub use install::{backup_once, backup_path, install_file};
+pub use login_token::{LoginTokenFiles, write_login_token};
+pub use trusted::resolve_trusted_servers;
 
 /// The loader, installed as the client's `version.dll`.
 pub const LOADER_DLL: &str = "version.dll";
@@ -62,6 +69,25 @@ impl Mode {
     }
 }
 
+/// Which login the client shows (`login_mode` in `poe-hook.toml`).
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LoginMode {
+    /// Account name and password (or remembered token): the loader patches the client's
+    /// platform detection. Only effective in [`Mode::Private`].
+    Standalone,
+    /// The client as shipped (Steam login). Always used in [`Mode::Official`].
+    Steam,
+}
+
+impl LoginMode {
+    pub fn as_str(self) -> &'static str {
+        match self {
+            LoginMode::Standalone => "standalone",
+            LoginMode::Steam => "steam",
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DeployOptions {
     /// The client directory (next to `PathOfExileSteam.exe`).
@@ -76,6 +102,12 @@ pub struct DeployOptions {
     /// Where the hook writes generated outputs (`dump_dir`); created if missing and written
     /// to the config as a path the client can read (see [`hook_path`]).
     pub dump_dir: Option<PathBuf>,
+    /// `login_mode` for [`Mode::Private`]; ignored (forced to `steam`) in [`Mode::Official`].
+    pub login_mode: LoginMode,
+    /// `trusted_servers` for [`Mode::Private`]: `host:port` entries the client treats like
+    /// loopback (not blocked, no read-only latch, crypto bypass). Host names are resolved to
+    /// IPv4 here ([`resolve_trusted_servers`]). Ignored (written empty) in [`Mode::Official`].
+    pub trusted_servers: Vec<String>,
 }
 
 /// What [`deploy`] did, for the caller's log.
@@ -83,6 +115,12 @@ pub struct DeployOptions {
 pub struct DeployReport {
     pub gateway: Option<String>,
     pub dump_dir: Option<String>,
+    /// The `login_mode` that was written.
+    pub login_mode: Option<LoginMode>,
+    /// The `trusted_servers` that were written (resolved).
+    pub trusted_servers: Vec<String>,
+    /// Entries that could not be used.
+    pub warnings: Vec<String>,
 }
 
 pub fn deploy(opts: &DeployOptions) -> Result<DeployReport> {
@@ -120,6 +158,29 @@ pub fn deploy(opts: &DeployOptions) -> Result<DeployReport> {
             .with_context(|| format!("writing {}", cfg.display()))?;
     }
     set_hook_key(&cfg, None, "mode", &format!("\"{}\"", opts.mode.as_str()))?;
+    // Official mode: no patch, nothing trusted beyond loopback (the DLL enforces this too).
+    let (login_mode, trusted) = match opts.mode {
+        Mode::Official => (LoginMode::Steam, Vec::new()),
+        Mode::Private => {
+            let (list, warnings) = resolve_trusted_servers(&opts.trusted_servers);
+            report.warnings = warnings;
+            (opts.login_mode, list)
+        }
+    };
+    set_hook_key(
+        &cfg,
+        None,
+        "login_mode",
+        &format!("\"{}\"", login_mode.as_str()),
+    )?;
+    set_hook_key(
+        &cfg,
+        None,
+        "trusted_servers",
+        &trusted::toml_array(&trusted),
+    )?;
+    report.login_mode = Some(login_mode);
+    report.trusted_servers = trusted;
     if let Some(port) = opts.position_sync_port {
         set_hook_key(
             &cfg,
