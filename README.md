@@ -15,7 +15,7 @@ proxy, and the host-side library that deploys and launches them.
 opcode tables `poe_proto::opcodes::v0_5_5e`).
 
 The mod manifest format planned for the loader and the launcher is specified in [docs/mod-manifest.md](docs/mod-manifest.md).
-Behavior of the DLLs is documented in the main repository (`docs/client-dll.md`).
+Behavior of the DLLs is documented in the main repository (`docs/architecture/client-dll.md`).
 
 ## Clone
 

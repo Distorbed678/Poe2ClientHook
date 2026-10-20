@@ -239,7 +239,7 @@ fn pending() -> &'static Mutex<HashMap<usize, Raw>> {
 }
 
 /// Window title for test clients (`POE_HOOK_WINDOW_TITLE`, set by `scripts/test-run.sh`), so a
-/// desktop rule can keep them off the user's screen (see docs/client-dll.md).
+/// desktop rule can keep them off the user's screen (see docs/guides/setup.md).
 static WINDOW_TITLE: OnceLock<Vec<u16>> = OnceLock::new();
 
 type CreateWindowExWFn = unsafe extern "system" fn(
