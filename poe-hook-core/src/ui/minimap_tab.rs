@@ -40,7 +40,10 @@ impl MinimapView {
                     "Area exported to {} (with server entities and walkability probe)",
                     dir.display()
                 ),
-                None if ok => "Area layout and grids exported (dump_dir terrain/layouts and terrain/grids)".into(),
+                None if ok => {
+                    "Area layout and grids exported (dump_dir terrain/layouts and terrain/grids)"
+                        .into()
+                }
                 None => "No area loaded".to_string(),
             });
         }

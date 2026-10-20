@@ -161,14 +161,11 @@ fn tables() -> &'static [(Channel, OpcodeTable); 2] {
         [
             (
                 Channel::Login,
-                parse("login", include_str!("../../../protocol/0.5.5e/login.toml")),
+                parse("login", poe_proto::opcodes::v0_5_5e::LOGIN_TOML),
             ),
             (
                 Channel::Instance,
-                parse(
-                    "instance",
-                    include_str!("../../../protocol/0.5.5e/instance.toml"),
-                ),
+                parse("instance", poe_proto::opcodes::v0_5_5e::INSTANCE_TOML),
             ),
         ]
     })

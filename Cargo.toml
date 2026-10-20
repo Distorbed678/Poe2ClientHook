@@ -1,11 +1,17 @@
-# Client-side DLLs, built for x86_64-pc-windows-msvc with cargo-xwin (`cargo xtask build-dll`).
-# Separate from the server workspace.
+# Client-side DLLs, built for x86_64-pc-windows-msvc (cargo-xwin on Linux; plain cargo on Windows).
+# Own Cargo workspace; Poe2ModdingProject consumes it as the submodule modules/client-hook.
 #   poe-hook        version.dll: proxy + permanent hooks (network guard, Vulkan, window) + loader
 #   poe-hook-core   poe_hook_core.dll: features and the debug overlay; hot-reloadable
 #   poe-hook-shared code and the loader <-> core ABI shared by both
+#   poe-hook-deploy host-side deployment (gateway list, poe-hook.toml, DLL install, Proton launch);
+#                   builds on the host, not part of the DLLs
 [workspace]
 resolver = "3"
-members = ["poe-hook", "poe-hook-core", "poe-hook-shared"]
+members = ["poe-hook", "poe-hook-core", "poe-hook-shared", "poe-hook-deploy"]
+# Host-buildable crates: a plain `cargo test` on Linux/Windows skips the DLLs.
+# The nested Poe2Protocol checkout is its own workspace.
+exclude = ["protocol"]
+default-members = ["poe-hook-deploy"]
 
 [workspace.package]
 edition = "2024"

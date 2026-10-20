@@ -12,7 +12,9 @@ pub struct InstancesView {
 
 impl InstancesView {
     pub fn new() -> Self {
-        Self { form: LayoutForm::new() }
+        Self {
+            form: LayoutForm::new(),
+        }
     }
 
     pub fn draw(&mut self, ui: &Ui) {
@@ -22,12 +24,35 @@ impl InstancesView {
             return;
         };
         if !me.as_ref().is_some_and(|m| m.admin) {
-            ui.text_colored([1.0, 0.6, 0.4, 1.0], "Your account is not in [admin] accounts: the server refuses these commands.");
+            ui.text_colored(
+                [1.0, 0.6, 0.4, 1.0],
+                "Your account is not in [admin] accounts: the server refuses these commands.",
+            );
         }
-        ui.text(format!("{} instances (list {} s old){}", list.len(), age.as_secs(), if idle > 0 { format!("; empty ones close after {idle} min") } else { String::new() }));
+        ui.text(format!(
+            "{} instances (list {} s old){}",
+            list.len(),
+            age.as_secs(),
+            if idle > 0 {
+                format!("; empty ones close after {idle} min")
+            } else {
+                String::new()
+            }
+        ));
         if let Some(_t) = ui.begin_table_header_with_flags(
             "instances",
-            ["id", "area", "name", "seed", "topology", "orientation", "players", "idle", ""].map(imgui::TableColumnSetup::new),
+            [
+                "id",
+                "area",
+                "name",
+                "seed",
+                "topology",
+                "orientation",
+                "players",
+                "idle",
+                "",
+            ]
+            .map(imgui::TableColumnSetup::new),
             super::table_opts(),
         ) {
             for inst in &list {

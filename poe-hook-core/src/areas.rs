@@ -23,7 +23,9 @@ pub fn all() -> &'static [Area] {
 }
 
 fn load() -> Vec<Area> {
-    let path = poe_hook_shared::exe_dir().join("poe-hook-data").join("areas.tsv");
+    let path = poe_hook_shared::exe_dir()
+        .join("poe-hook-data")
+        .join("areas.tsv");
     let text = std::fs::read_to_string(&path).unwrap_or_else(|_| {
         log::warn!("{} missing (run cargo xtask dll-data)", path.display());
         String::new()
@@ -42,7 +44,10 @@ fn load() -> Vec<Area> {
                 .filter(|t| !t.is_empty())
                 .filter_map(|t| {
                     let (graph, mask) = t.rsplit_once(':')?;
-                    Some((graph.to_owned(), u8::from_str_radix(mask.trim_start_matches("0x"), 16).unwrap_or(0xff)))
+                    Some((
+                        graph.to_owned(),
+                        u8::from_str_radix(mask.trim_start_matches("0x"), 16).unwrap_or(0xff),
+                    ))
                 })
                 .collect();
             Some(Area {
@@ -65,7 +70,10 @@ static RECENT: Mutex<Option<Vec<String>>> = Mutex::new(None);
 const RECENT_KEEP: usize = 12;
 
 fn recent_path() -> std::path::PathBuf {
-    poe_hook_shared::exe_dir().join("logs").join("poe-hook").join("recent_areas.tsv")
+    poe_hook_shared::exe_dir()
+        .join("logs")
+        .join("poe-hook")
+        .join("recent_areas.tsv")
 }
 
 /// Recently picked area ids, newest first.

@@ -116,9 +116,12 @@ impl App {
             .build(|| {
                 self.palette(ui);
                 let avail = ui.content_region_avail();
-                ui.child_window("nav").size([190.0, avail[1]]).border(true).build(ui, || {
-                    self.nav(ui);
-                });
+                ui.child_window("nav")
+                    .size([190.0, avail[1]])
+                    .border(true)
+                    .build(ui, || {
+                        self.nav(ui);
+                    });
                 ui.same_line();
                 ui.child_window("page").size([0.0, avail[1]]).build(ui, || {
                     self.draw_page(ui, plots);
@@ -131,21 +134,30 @@ impl App {
     /// filtered by the search box.
     fn nav(&mut self, ui: &Ui) {
         ui.set_next_item_width(-1.0);
-        ui.input_text("##page_search", &mut self.page_search).hint("search pages").build();
+        ui.input_text("##page_search", &mut self.page_search)
+            .hint("search pages")
+            .build();
         ui.text_disabled("Ctrl+P: palette");
         let f = self.page_search.to_lowercase();
         for (group, custom, pages) in GROUPS {
             if *custom && !custom_server() {
                 continue;
             }
-            let shown: Vec<&(Page, &str)> = pages.iter().filter(|(_, n)| f.is_empty() || n.to_lowercase().contains(&f)).collect();
+            let shown: Vec<&(Page, &str)> = pages
+                .iter()
+                .filter(|(_, n)| f.is_empty() || n.to_lowercase().contains(&f))
+                .collect();
             if shown.is_empty() {
                 continue;
             }
             ui.spacing();
             ui.text_colored([0.6, 0.75, 1.0, 1.0], group);
             for (page, name) in shown {
-                if ui.selectable_config(format!("  {name}")).selected(self.page == *page).build() {
+                if ui
+                    .selectable_config(format!("  {name}"))
+                    .selected(self.page == *page)
+                    .build()
+                {
                     self.go(*page);
                 }
             }
@@ -193,7 +205,9 @@ impl App {
             self.palette_query.clear();
             ui.open_popup("##palette");
         }
-        let Some(_p) = ui.begin_popup("##palette") else { return };
+        let Some(_p) = ui.begin_popup("##palette") else {
+            return;
+        };
         if ui.is_window_appearing() {
             let [w, _] = ui.io().display_size();
             ui.set_window_pos([w * 0.5 - 300.0, 120.0]);
@@ -231,10 +245,33 @@ impl App {
                 if !q.is_empty() && !c.name.starts_with(&first_word) && !c.name.contains(&q) {
                     continue;
                 }
-                let line = if q.starts_with(&c.name) { self.palette_query.trim().to_string() } else { c.name.clone() };
-                first.get_or_insert(PaletteItem::Command(line.clone(), c.args.iter().any(|a| !a.optional)));
-                let usage: Vec<String> = c.args.iter().map(|a| if a.optional { format!("[{}]", a.name) } else { format!("<{}>", a.name) }).collect();
-                if ui.selectable(format!("Run: {} {}  - {}##cmd{}", c.name, usage.join(" "), c.help, c.name)) {
+                let line = if q.starts_with(&c.name) {
+                    self.palette_query.trim().to_string()
+                } else {
+                    c.name.clone()
+                };
+                first.get_or_insert(PaletteItem::Command(
+                    line.clone(),
+                    c.args.iter().any(|a| !a.optional),
+                ));
+                let usage: Vec<String> = c
+                    .args
+                    .iter()
+                    .map(|a| {
+                        if a.optional {
+                            format!("[{}]", a.name)
+                        } else {
+                            format!("<{}>", a.name)
+                        }
+                    })
+                    .collect();
+                if ui.selectable(format!(
+                    "Run: {} {}  - {}##cmd{}",
+                    c.name,
+                    usage.join(" "),
+                    c.help,
+                    c.name
+                )) {
                     chosen = Some(PaletteItem::Command(line, false));
                 }
             }
@@ -298,20 +335,67 @@ enum Page {
 
 /// Sidebar groups: name, our server only, pages.
 const GROUPS: &[(&str, bool, &[(Page, &str)])] = &[
-    ("HOME", false, &[(Page::Status, "Status"), (Page::Log, "Log"), (Page::GameLog, "Game log")]),
-    ("SERVER", true, &[(Page::Instances, "Instances"), (Page::Commands, "Commands"), (Page::Server, "Sync state"), (Page::Desync, "Desync")]),
-    ("NETWORK", false, &[(Page::Packets, "Packets"), (Page::Protocol, "Protocol"), (Page::Coverage, "Coverage"), (Page::Notes, "Notes"), (Page::Timing, "Timing")]),
-    ("GAME", false, &[(Page::Player, "Player"), (Page::Stats, "Stats"), (Page::Actions, "Actions"), (Page::Entities, "Entities"), (Page::Watches, "Watches"), (Page::Minimap, "Minimap")]),
-    ("RE TOOLS", false, &[(Page::Scanner, "Scanner"), (Page::Hooks, "Hooks")]),
+    (
+        "HOME",
+        false,
+        &[
+            (Page::Status, "Status"),
+            (Page::Log, "Log"),
+            (Page::GameLog, "Game log"),
+        ],
+    ),
+    (
+        "SERVER",
+        true,
+        &[
+            (Page::Instances, "Instances"),
+            (Page::Commands, "Commands"),
+            (Page::Server, "Sync state"),
+            (Page::Desync, "Desync"),
+        ],
+    ),
+    (
+        "NETWORK",
+        false,
+        &[
+            (Page::Packets, "Packets"),
+            (Page::Protocol, "Protocol"),
+            (Page::Coverage, "Coverage"),
+            (Page::Notes, "Notes"),
+            (Page::Timing, "Timing"),
+        ],
+    ),
+    (
+        "GAME",
+        false,
+        &[
+            (Page::Player, "Player"),
+            (Page::Stats, "Stats"),
+            (Page::Actions, "Actions"),
+            (Page::Entities, "Entities"),
+            (Page::Watches, "Watches"),
+            (Page::Minimap, "Minimap"),
+        ],
+    ),
+    (
+        "RE TOOLS",
+        false,
+        &[(Page::Scanner, "Scanner"), (Page::Hooks, "Hooks")],
+    ),
     ("SETTINGS", false, &[(Page::Features, "Features")]),
 ];
 
 fn page_is_custom(page: Page) -> bool {
-    GROUPS.iter().any(|(_, custom, pages)| *custom && pages.iter().any(|(p, _)| *p == page))
+    GROUPS
+        .iter()
+        .any(|(_, custom, pages)| *custom && pages.iter().any(|(p, _)| *p == page))
 }
 
 fn page_path() -> std::path::PathBuf {
-    poe_hook_shared::exe_dir().join("logs").join("poe-hook").join("overlay_page.txt")
+    poe_hook_shared::exe_dir()
+        .join("logs")
+        .join("poe-hook")
+        .join("overlay_page.txt")
 }
 
 fn save_page(page: Page) {

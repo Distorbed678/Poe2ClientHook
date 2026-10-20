@@ -31,7 +31,15 @@ fn random_seed() -> u32 {
 
 impl LayoutForm {
     pub fn new() -> Self {
-        Self { search: String::new(), kind: 0, act: 0, area: String::new(), seed: String::new(), topology: 0, orientation: 0 }
+        Self {
+            search: String::new(),
+            kind: 0,
+            act: 0,
+            area: String::new(),
+            seed: String::new(),
+            topology: 0,
+            orientation: 0,
+        }
     }
 
     /// Area, seed, topology and orientation as command arguments (`random` / `natural` for
@@ -41,8 +49,16 @@ impl LayoutForm {
             Ok(s) if s != 0 => s.to_string(),
             _ => "random".into(),
         };
-        let topology = if self.topology == 0 { "natural".to_string() } else { self.topology.to_string() };
-        let orientation = if self.orientation == 0 { "natural".to_string() } else { (self.orientation - 1).to_string() };
+        let topology = if self.topology == 0 {
+            "natural".to_string()
+        } else {
+            self.topology.to_string()
+        };
+        let orientation = if self.orientation == 0 {
+            "natural".to_string()
+        } else {
+            (self.orientation - 1).to_string()
+        };
         format!("{} {seed} {topology} {orientation}", self.area)
     }
 
@@ -57,7 +73,9 @@ impl LayoutForm {
             ui.text_disabled("No area list: run `cargo xtask dll-data` (or deploy-client), then reload the core.");
         }
         ui.set_next_item_width(200.0);
-        ui.input_text("search", &mut self.search).hint("id or name").build();
+        ui.input_text("search", &mut self.search)
+            .hint("id or name")
+            .build();
         ui.same_line();
         ui.set_next_item_width(90.0);
         ui.combo_simple_string("kind", &mut self.kind, &KINDS);
@@ -79,30 +97,41 @@ impl LayoutForm {
             .iter()
             .filter(|a| self.kind == 0 || a.kind == KINDS[self.kind])
             .filter(|a| self.act <= 0 || a.act == self.act as i64)
-            .filter(|a| f.is_empty() || a.id.to_lowercase().contains(&f) || a.name.to_lowercase().contains(&f))
+            .filter(|a| {
+                f.is_empty()
+                    || a.id.to_lowercase().contains(&f)
+                    || a.name.to_lowercase().contains(&f)
+            })
             .collect();
-        ui.child_window("areas").size([0.0, 170.0]).border(true).build(ui, || {
-            let mut clipper = ListClipper::new(shown.len()).begin(ui);
-            while clipper.step() {
-                for i in clipper.display_start()..clipper.display_end() {
-                    let a = shown[i as usize];
-                    let label = format!(
-                        "{:22} {:36} act {:2} lvl {:3} {:7} {} topologies##{}",
-                        a.id,
-                        a.name,
-                        a.act,
-                        a.level,
-                        a.kind,
-                        a.topologies.len(),
-                        a.id
-                    );
-                    if ui.selectable_config(label).selected(a.id.eq_ignore_ascii_case(&self.area)).build() {
-                        let id = a.id.clone();
-                        self.select(&id);
+        ui.child_window("areas")
+            .size([0.0, 170.0])
+            .border(true)
+            .build(ui, || {
+                let mut clipper = ListClipper::new(shown.len()).begin(ui);
+                while clipper.step() {
+                    for i in clipper.display_start()..clipper.display_end() {
+                        let a = shown[i as usize];
+                        let label = format!(
+                            "{:22} {:36} act {:2} lvl {:3} {:7} {} topologies##{}",
+                            a.id,
+                            a.name,
+                            a.act,
+                            a.level,
+                            a.kind,
+                            a.topologies.len(),
+                            a.id
+                        );
+                        if ui
+                            .selectable_config(label)
+                            .selected(a.id.eq_ignore_ascii_case(&self.area))
+                            .build()
+                        {
+                            let id = a.id.clone();
+                            self.select(&id);
+                        }
                     }
                 }
-            }
-        });
+            });
         ui.text_disabled(format!("{} of {} areas", shown.len(), areas.len()));
         ui.set_next_item_width(200.0);
         ui.input_text("area", &mut self.area).build();
@@ -120,14 +149,23 @@ impl LayoutForm {
         let area = crate::areas::find(&self.area);
         let topologies: Vec<(String, u8)> = area.map(|a| a.topologies.clone()).unwrap_or_default();
         let mut names = vec!["natural (client's choice)".to_string()];
-        names.extend(topologies.iter().enumerate().map(|(i, (g, _))| format!("{} {g}", i + 1)));
+        names.extend(
+            topologies
+                .iter()
+                .enumerate()
+                .map(|(i, (g, _))| format!("{} {g}", i + 1)),
+        );
         if self.topology >= names.len() {
             self.topology = 0;
         }
         ui.set_next_item_width(260.0);
         ui.combo_simple_string("topology", &mut self.topology, &names);
         ui.same_line();
-        let mask = if self.topology == 0 { 0xff } else { topologies[self.topology - 1].1 };
+        let mask = if self.topology == 0 {
+            0xff
+        } else {
+            topologies[self.topology - 1].1
+        };
         let mut orients = vec!["natural".to_string()];
         orients.extend((0..8u8).map(|o| {
             let allowed = mask == 0 || mask == 0xff || mask >> o & 1 != 0;

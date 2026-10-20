@@ -387,7 +387,10 @@ pub(crate) unsafe fn export_layout(world: usize) {
         }
     }
     unsafe { export_grids(terrain, w as usize, h as usize, tile_hash) };
-    let path = crate::dump_path("terrain/layouts", &format!("terrain_layout_{tile_hash}.tsv"));
+    let path = crate::dump_path(
+        "terrain/layouts",
+        &format!("terrain_layout_{tile_hash}.tsv"),
+    );
     match std::fs::write(&path, out) {
         Ok(()) => log::info!("exported {w}x{h} layout to {}", path.display()),
         Err(e) => log::error!("layout export: {e}"),

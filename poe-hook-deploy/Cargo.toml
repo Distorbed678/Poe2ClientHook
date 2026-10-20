@@ -1,0 +1,14 @@
+[package]
+name = "poe-hook-deploy"
+description = "Host-side deployment of the PoE2 client hook: gateway list, poe-hook.toml, DLL install/revert, Proton launch"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+anyhow = "1"
+
+[dev-dependencies]
+tempfile = "3"
+toml = "0.9"

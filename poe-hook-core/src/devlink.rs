@@ -150,13 +150,27 @@ fn handle_registry(text: &str) {
                     .filter_map(|a| {
                         let (name, kind) = a.split_once(':')?;
                         let optional = kind.ends_with('?');
-                        Some(CmdArg { name: name.to_owned(), kind: kind.trim_end_matches('?').to_owned(), optional })
+                        Some(CmdArg {
+                            name: name.to_owned(),
+                            kind: kind.trim_end_matches('?').to_owned(),
+                            optional,
+                        })
                     })
                     .collect();
-                reg.0.push(Cmd { name: f[1].to_owned(), group: f[2].to_owned(), admin: f[3] == "1", args, help: f[5].to_owned() });
+                reg.0.push(Cmd {
+                    name: f[1].to_owned(),
+                    group: f[2].to_owned(),
+                    admin: f[3] == "1",
+                    args,
+                    help: f[5].to_owned(),
+                });
             }
             Some("you") if f.len() >= 4 => {
-                reg.1 = Some(Me { account: f[1].to_owned(), admin: f[2] == "1", prefix: f[3].to_owned() });
+                reg.1 = Some(Me {
+                    account: f[1].to_owned(),
+                    admin: f[2] == "1",
+                    prefix: f[3].to_owned(),
+                });
             }
             _ => {}
         }
@@ -181,7 +195,11 @@ fn handle_instances(text: &str) {
                         persistent: f[6] == "1",
                         empty_secs: opt(f[7]),
                         current: f[8] == "1",
-                        players: f[9].split(',').filter(|p| !p.is_empty()).map(str::to_owned).collect(),
+                        players: f[9]
+                            .split(',')
+                            .filter(|p| !p.is_empty())
+                            .map(str::to_owned)
+                            .collect(),
                     });
                 }
             }
@@ -203,7 +221,11 @@ pub fn registry() -> (Vec<Cmd>, Option<Me>) {
 /// The server's instances (how old the list is, the list, idle minutes before an empty
 /// instance closes).
 pub fn instances() -> Option<(Duration, Vec<Inst>, u64)> {
-    INSTANCES.lock().unwrap().as_ref().map(|(at, l, idle)| (at.elapsed(), l.clone(), *idle))
+    INSTANCES
+        .lock()
+        .unwrap()
+        .as_ref()
+        .map(|(at, l, idle)| (at.elapsed(), l.clone(), *idle))
 }
 
 /// Recent command results (unix ms, command, result), oldest first.
@@ -234,7 +256,11 @@ fn handle(text: &str) {
         if r.len() >= 200 {
             r.pop_front();
         }
-        r.push_back((poe_hook_shared::unix_ms(), cmd.to_owned(), result.to_owned()));
+        r.push_back((
+            poe_hook_shared::unix_ms(),
+            cmd.to_owned(),
+            result.to_owned(),
+        ));
         return;
     }
     let map: HashMap<&str, &str> = values

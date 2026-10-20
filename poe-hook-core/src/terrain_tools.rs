@@ -445,20 +445,38 @@ unsafe extern "win64" fn on_lattice_step(regs: *mut Registers, step: usize) {
     let r = unsafe { &*regs };
     let view = read::<usize>(r.rcx as usize + view_at).unwrap_or(0);
     let map = read::<usize>(view).unwrap_or(0);
-    let (x0, y0) = (read::<i32>(view + 8).unwrap_or(0), read::<i32>(view + 0xc).unwrap_or(0));
-    let (w, h) = (read::<u32>(view + 0x18).unwrap_or(0), read::<u32>(view + 0x1c).unwrap_or(0));
+    let (x0, y0) = (
+        read::<i32>(view + 8).unwrap_or(0),
+        read::<i32>(view + 0xc).unwrap_or(0),
+    );
+    let (w, h) = (
+        read::<u32>(view + 0x18).unwrap_or(0),
+        read::<u32>(view + 0x1c).unwrap_or(0),
+    );
     let stride = read::<u64>(map + 0x40).unwrap_or(0) as usize;
     let data = read::<usize>(map + 0x50).unwrap_or(0);
-    let (gb, ge) = (read::<usize>(map + 0x68).unwrap_or(0), read::<usize>(map + 0x70).unwrap_or(0));
+    let (gb, ge) = (
+        read::<usize>(map + 0x68).unwrap_or(0),
+        read::<usize>(map + 0x70).unwrap_or(0),
+    );
     let mut grounds = Vec::new();
     let mut q = gb;
     while q < ge && grounds.len() < 256 {
         let h = read::<usize>(q).unwrap_or(0);
-        let p = if h == 0 { "-".to_string() } else { resource_path(h) };
+        let p = if h == 0 {
+            "-".to_string()
+        } else {
+            resource_path(h)
+        };
         grounds.push(p.rsplit('/').next().unwrap_or("").to_string());
         q += 8;
     }
-    trace_line("lattice", name, &format!("view {x0},{y0} {w}x{h}"), &grounds.join(","));
+    trace_line(
+        "lattice",
+        name,
+        &format!("view {x0},{y0} {w}x{h}"),
+        &grounds.join(","),
+    );
     if w > 1024 || h > 1024 || stride == 0 {
         return;
     }
@@ -482,7 +500,10 @@ unsafe extern "win64" fn on_path_crossings(regs: *mut Registers, _: usize) {
     }
     let r = unsafe { &*regs };
     let v = r.r8 as usize;
-    let (b, e) = (read::<usize>(v).unwrap_or(0), read::<usize>(v + 8).unwrap_or(0));
+    let (b, e) = (
+        read::<usize>(v).unwrap_or(0),
+        read::<usize>(v + 8).unwrap_or(0),
+    );
     let mut tiles = Vec::new();
     let mut q = b;
     while q < e && tiles.len() < 4096 {
@@ -490,7 +511,12 @@ unsafe extern "win64" fn on_path_crossings(regs: *mut Registers, _: usize) {
         tiles.push(format!("{},{}", t[0], t[1]));
         q += 8;
     }
-    trace_line("path_tiles", "1420b7490", &format!("size {} n {}", r.r9, tiles.len()), &tiles.join(" "));
+    trace_line(
+        "path_tiles",
+        "1420b7490",
+        &format!("size {} n {}", r.r9, tiles.len()),
+        &tiles.join(" "),
+    );
 }
 
 unsafe extern "win64" fn on_tile_lookup(regs: *mut Registers, _: usize) {
@@ -508,15 +534,25 @@ unsafe extern "win64" fn on_tile_lookup(regs: *mut Registers, _: usize) {
             p.rsplit('/').next().unwrap_or("").to_string()
         }
     };
-    let edges: Vec<String> = (0..4).map(|k| name(read::<usize>(key + k * 8).unwrap_or(0))).collect();
-    let grounds: Vec<String> = (0..4).map(|k| name(read::<usize>(key + 0x22 + k * 8).unwrap_or(0))).collect();
+    let edges: Vec<String> = (0..4)
+        .map(|k| name(read::<usize>(key + k * 8).unwrap_or(0)))
+        .collect();
+    let grounds: Vec<String> = (0..4)
+        .map(|k| name(read::<usize>(key + 0x22 + k * 8).unwrap_or(0)))
+        .collect();
     let size: [u8; 2] = read(key + 0x20).unwrap_or_default();
     let bytes: [u8; 12] = read(key + 0x42).unwrap_or_default();
     let ret = read::<usize>(r.rsp as usize).map_or(0, ghidra);
     trace_line(
         "tile_key",
         &format!("{ret:x}"),
-        &format!("size {:?} h {:?} x {:?} v {:?}", size, &bytes[0..4], &bytes[4..8], &bytes[8..12]),
+        &format!(
+            "size {:?} h {:?} x {:?} v {:?}",
+            size,
+            &bytes[0..4],
+            &bytes[4..8],
+            &bytes[8..12]
+        ),
         &format!("e {} g {}", edges.join(","), grounds.join(",")),
     );
 }
@@ -604,7 +640,11 @@ unsafe extern "win64" fn on_node_candidates(
             key.push(if e == 0 {
                 "-".to_string()
             } else {
-                resource_path(e).rsplit('/').next().unwrap_or("").to_string()
+                resource_path(e)
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string()
             });
         }
         let sides: [u32; 4] = read(a5).unwrap_or_default();
@@ -614,7 +654,10 @@ unsafe extern "win64" fn on_node_candidates(
             if e == 0 {
                 continue;
             }
-            let (pb, pe) = (read::<usize>(e + 8).unwrap_or(0), read::<usize>(e + 0x10).unwrap_or(0));
+            let (pb, pe) = (
+                read::<usize>(e + 8).unwrap_or(0),
+                read::<usize>(e + 0x10).unwrap_or(0),
+            );
             let mut pts = Vec::new();
             let mut q = pb;
             while q < pe && pts.len() < 16 {
@@ -623,7 +666,11 @@ unsafe extern "win64" fn on_node_candidates(
                 q += 8;
             }
             let from = read::<usize>(e + 0x20).unwrap_or(0) == node;
-            slots.push(format!("s{i}{}[{}]", if from { ">" } else { "<" }, pts.join(" ")));
+            slots.push(format!(
+                "s{i}{}[{}]",
+                if from { ">" } else { "<" },
+                pts.join(" ")
+            ));
         }
         trace_line(
             "node_key",
@@ -634,7 +681,11 @@ unsafe extern "win64" fn on_node_candidates(
         trace_line(
             "node_candidates",
             "1420c76d0",
-            &format!("{} total={}", node_desc(node), read::<i32>(list + 0x18).unwrap_or(0)),
+            &format!(
+                "{} total={}",
+                node_desc(node),
+                read::<i32>(list + 0x18).unwrap_or(0)
+            ),
             &out.join(" "),
         );
     }
@@ -642,7 +693,10 @@ unsafe extern "win64" fn on_node_candidates(
 }
 
 fn edge_points(e: usize) -> String {
-    let (pb, pe) = (read::<usize>(e + 8).unwrap_or(0), read::<usize>(e + 0x10).unwrap_or(0));
+    let (pb, pe) = (
+        read::<usize>(e + 8).unwrap_or(0),
+        read::<usize>(e + 0x10).unwrap_or(0),
+    );
     let mut pts = Vec::new();
     let mut q = pb;
     while q < pe && pts.len() < 64 {
@@ -658,7 +712,10 @@ type RouteFn = unsafe extern "win64" fn(usize, usize) -> usize;
 /// Dumps a layout graph (nodes, then edges) as trace lines of `kind`.
 fn dump_graph(kind: &str, graph: usize) {
     let vec = |at: usize| -> Vec<usize> {
-        let (b, e) = (read::<usize>(at).unwrap_or(0), read::<usize>(at + 8).unwrap_or(0));
+        let (b, e) = (
+            read::<usize>(at).unwrap_or(0),
+            read::<usize>(at + 8).unwrap_or(0),
+        );
         let mut out = Vec::new();
         let mut q = b;
         while q < e && out.len() < 4096 {
@@ -681,14 +738,23 @@ fn dump_graph(kind: &str, graph: usize) {
         trace_line(
             kind,
             "node",
-            &format!("{i} {},{} slots {:?} h {} flags {:?}", pos[0], pos[1], slots, read::<i32>(n + 0x48).unwrap_or(0), flags),
+            &format!(
+                "{i} {},{} slots {:?} h {} flags {:?}",
+                pos[0],
+                pos[1],
+                slots,
+                read::<i32>(n + 0x48).unwrap_or(0),
+                flags
+            ),
             "",
         );
     }
     for (i, &e) in edges.iter().enumerate() {
         let from = node_id(read::<usize>(e + 0x20).unwrap_or(0));
         let to = node_id(read::<usize>(e + 0x28).unwrap_or(0));
-        let et = read::<usize>(e + 0x38).map(resource_path).unwrap_or_default();
+        let et = read::<usize>(e + 0x38)
+            .map(resource_path)
+            .unwrap_or_default();
         let vends: [i32; 8] = read(e + 0x4c).unwrap_or_default();
         let vflags: [u8; 3] = read(e + 0x48).unwrap_or_default();
         let off: [i32; 4] = read(e + 0x70).unwrap_or_default();
@@ -718,14 +784,21 @@ fn dump_graph(kind: &str, graph: usize) {
 
 type LayoutFn = unsafe extern "win64" fn(usize, usize) -> usize;
 
-unsafe extern "win64" fn on_split_virtual(regs: *mut Registers, original: usize, _: usize) -> usize {
+unsafe extern "win64" fn on_split_virtual(
+    regs: *mut Registers,
+    original: usize,
+    _: usize,
+) -> usize {
     let mut guard = crate::hook_guard!("terrain_tools::on_split_virtual");
     let r = unsafe { &*regs };
     let (layout, a2) = (r.rcx as usize, r.rdx as usize);
     let f: LayoutFn = unsafe { std::mem::transmute(original) };
     let ret = guard.original(|| unsafe { f(layout, a2) });
     if on_generator_thread() {
-        dump_graph("graph_after_split", read::<usize>(layout + 0x20).unwrap_or(0));
+        dump_graph(
+            "graph_after_split",
+            read::<usize>(layout + 0x20).unwrap_or(0),
+        );
     }
     ret
 }
@@ -737,7 +810,10 @@ unsafe extern "win64" fn on_smooth_edges(regs: *mut Registers, original: usize, 
     let f: LayoutFn = unsafe { std::mem::transmute(original) };
     let ret = guard.original(|| unsafe { f(layout, a2) });
     if on_generator_thread() {
-        dump_graph(&format!("graph_after_smooth{}", a2 as u8), read::<usize>(layout + 0x20).unwrap_or(0));
+        dump_graph(
+            &format!("graph_after_smooth{}", a2 as u8),
+            read::<usize>(layout + 0x20).unwrap_or(0),
+        );
     }
     ret
 }
@@ -745,7 +821,11 @@ unsafe extern "win64" fn on_smooth_edges(regs: *mut Registers, original: usize, 
 type EdgeStepFn = unsafe extern "win64" fn(usize, usize, usize) -> usize;
 
 /// Logs an edge before and after a smoothing step.
-unsafe extern "win64" fn on_edge_step(regs: *mut Registers, original: usize, which: usize) -> usize {
+unsafe extern "win64" fn on_edge_step(
+    regs: *mut Registers,
+    original: usize,
+    which: usize,
+) -> usize {
     let mut guard = crate::hook_guard!("terrain_tools::on_edge_step");
     let r = unsafe { &*regs };
     let (ctx, edge, a3) = (r.rcx as usize, r.rdx as usize, r.r8 as usize);
@@ -780,7 +860,10 @@ unsafe extern "win64" fn on_edge_tiles(regs: *mut Registers, _: usize) {
     let r = unsafe { &*regs };
     // `0x1420b6950(&state)`: state +0x30 is the layout (its +0x20 the graph).
     let layout = read::<usize>(r.rcx as usize + 0x30).unwrap_or(0);
-    dump_graph("graph_before_tiles", read::<usize>(layout + 0x20).unwrap_or(0));
+    dump_graph(
+        "graph_before_tiles",
+        read::<usize>(layout + 0x20).unwrap_or(0),
+    );
 }
 
 static GRID_DUMPED: AtomicBool = AtomicBool::new(false);
@@ -790,7 +873,10 @@ unsafe extern "win64" fn on_route_edge(regs: *mut Registers, original: usize, _:
     let r = unsafe { &*regs };
     let (router, edge) = (r.rcx as usize, r.rdx as usize);
     let before = on_generator_thread().then(|| edge_points(edge));
-    if before.is_some() && (std::env::var_os("POE_HOOK_ROUTE_GRIDS").is_some() || !GRID_DUMPED.swap(true, Ordering::Relaxed)) {
+    if before.is_some()
+        && (std::env::var_os("POE_HOOK_ROUTE_GRIDS").is_some()
+            || !GRID_DUMPED.swap(true, Ordering::Relaxed))
+    {
         // The router's tile grid before the first edge: cost, uses, occupied (+0x28, 12 bytes).
         let w = read::<u32>(router + 0x40).unwrap_or(0);
         let h = read::<u32>(router + 0x44).unwrap_or(0);
