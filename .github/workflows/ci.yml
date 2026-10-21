@@ -14,13 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      # The nested Poe2Protocol submodule is another private repo the default token cannot read:
-      # fetch it with the SUBMODULE_TOKEN secret (fine-grained PAT, contents:read on Poe2Protocol).
-      - name: Fetch submodules
-        shell: bash
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.SUBMODULE_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+        with:
+          submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
           components: rustfmt, clippy
@@ -34,13 +29,8 @@ jobs:
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
-      # The nested Poe2Protocol submodule is another private repo the default token cannot read:
-      # fetch it with the SUBMODULE_TOKEN secret (fine-grained PAT, contents:read on Poe2Protocol).
-      - name: Fetch submodules
-        shell: bash
-        run: |
-          git config --global url."https://x-access-token:${{ secrets.SUBMODULE_TOKEN }}@github.com/".insteadOf "https://github.com/"
-          git submodule update --init --recursive
+        with:
+          submodules: recursive
       - uses: dtolnay/rust-toolchain@stable
         with:
           targets: x86_64-pc-windows-msvc
