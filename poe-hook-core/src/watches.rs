@@ -227,7 +227,7 @@ impl Parser {
 fn named(name: &str) -> Result<usize, String> {
     let player = crate::dump_types::player();
     let component = |i: usize| {
-        read::<usize>(player + 0x10)
+        read::<usize>(player + crate::sigs::off().entity_components_begin)
             .and_then(|c| read::<usize>(c + i * 8))
             .ok_or_else(|| "no player".to_string())
     };

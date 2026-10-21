@@ -21,8 +21,8 @@ impl Grid {
             return None;
         }
         let terrain = crate::dump_types::terrain(world)?;
-        let w = read::<u32>(terrain + 0x18)? as usize;
-        let h = read::<u32>(terrain + 0x20)? as usize;
+        let w = read::<u32>(terrain + crate::sigs::off().terrain_width)? as usize;
+        let h = read::<u32>(terrain + crate::sigs::off().terrain_height)? as usize;
         let (cells_x, cells_y) = (w * 23, h * 23);
         let bytes_per_row = cells_x.div_ceil(2);
         let off = *LAYERS.get(layer)?;

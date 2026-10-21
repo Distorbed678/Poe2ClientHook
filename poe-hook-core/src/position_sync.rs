@@ -84,31 +84,32 @@ pub fn report(entity: usize, frame: u32) {
         return;
     }
     use poe_hook_shared::mem::read;
-    let Some(comps) = read::<usize>(entity + 0x10) else {
+    let o = crate::sigs::off();
+    let Some(comps) = read::<usize>(entity + o.entity_components_begin) else {
         return;
     };
     let (Some(pos), Some(actor)) = (read::<usize>(comps), read::<usize>(comps + 9 * 8)) else {
         return;
     };
     const CELL: f32 = 250.0 / 23.0;
-    let x = read::<f32>(pos + 0x490).unwrap_or(0.0) / CELL;
-    let y = read::<f32>(pos + 0x494).unwrap_or(0.0) / CELL;
+    let x = read::<f32>(pos + o.positioned_world_x).unwrap_or(0.0) / CELL;
+    let y = read::<f32>(pos + o.positioned_world_y).unwrap_or(0.0) / CELL;
     let action = |off: usize| {
         read::<usize>(actor + off)
             .filter(|&a| a != 0)
-            .and_then(|a| read::<u16>(a + 0x120))
+            .and_then(|a| read::<u16>(a + o.action_type))
             .unwrap_or(0)
     };
     // Actor +0x2a2 bit 5: sprint key held (set by the server's 0x2e7).
-    let flags = read::<u8>(actor + 0x2a2).unwrap_or(0) as u16;
+    let flags = read::<u8>(actor + o.actor_sprint_flags).unwrap_or(0) as u16;
     let (cx, cy, w, h) = cursor().unwrap_or_default();
     let payload = poe_hook_shared::sidechannel::ReportPayload {
         flags,
         frame,
         x,
         y,
-        action: action(0x238),
-        action2: action(0x240),
+        action: action(o.actor_action0),
+        action2: action(o.actor_action1),
         cursor: (cx, cy),
         window: (w, h),
     }

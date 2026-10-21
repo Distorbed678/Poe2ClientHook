@@ -26,29 +26,39 @@ pub fn player() -> Option<Player> {
     if entity == 0 {
         return None;
     }
-    let comps = read::<usize>(entity + 0x10)?;
+    if !crate::sigs::feature_ok("inspect") {
+        return None;
+    }
+    let o = crate::sigs::off();
+    let comps = read::<usize>(entity + o.entity_components_begin)?;
     let pos = read::<usize>(comps)?;
     let actor = read::<usize>(comps + 9 * 8)?;
     let action = |off: usize| {
         read::<usize>(actor + off)
             .filter(|&a| a != 0)
-            .and_then(|a| read::<u16>(a + 0x120))
+            .and_then(|a| read::<u16>(a + o.action_type))
             .unwrap_or(0)
     };
     Some(Player {
         entity,
-        id: read(entity + 0x88)?,
-        grid: (read(pos + 0x444)?, read(pos + 0x448)?),
-        world: (read(pos + 0x490)?, read(pos + 0x494)?),
-        facing: read(pos + 0x44c)?,
-        facing_locked: read::<u8>(pos + 0x1e5).unwrap_or(0) & 2 != 0,
-        action: action(0x238),
-        action2: action(0x240),
-        wasd: (
-            read(actor + 0x400).unwrap_or(0),
-            read(actor + 0x404).unwrap_or(0),
+        id: read(entity + o.entity_id)?,
+        grid: (
+            read(pos + o.positioned_grid_x)?,
+            read(pos + o.positioned_grid_y)?,
         ),
-        flags: read(actor + 0x2a2).unwrap_or(0),
+        world: (
+            read(pos + o.positioned_world_x)?,
+            read(pos + o.positioned_world_y)?,
+        ),
+        facing: read(pos + o.positioned_facing)?,
+        facing_locked: read::<u8>(pos + o.positioned_facing_lock).unwrap_or(0) & 2 != 0,
+        action: action(o.actor_action0),
+        action2: action(o.actor_action1),
+        wasd: (
+            read(actor + o.actor_dir_x).unwrap_or(0),
+            read(actor + o.actor_dir_y).unwrap_or(0),
+        ),
+        flags: read(actor + o.actor_sprint_flags).unwrap_or(0),
     })
 }
 

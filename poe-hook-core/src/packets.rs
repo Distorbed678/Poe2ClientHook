@@ -1,6 +1,10 @@
 //! Packet capture: the plaintext of every login and instance message, read inside the client
 //! (no cipher is broken; the same code runs on our and on official servers).
 //!
+//! The functions and every struct offset named below are 0.5.5e values: the DLL finds them by
+//! signature (`signatures/0.5.5e.toml`: `read_message`, `packet_flush_plaintext`,
+//! `session_send`, `*_session_loop`, `stream.*` fields) and does not start when one is missing.
+//!
 //! - **Received** (`READ_MESSAGE` `0x1421c5950(registry, stream)`): the game's message reader.
 //!   It reads the opcode from the stream's receive ring (decrypted on arrival), lets the
 //!   registered handlers deserialize the body, then advances the ring's read offset (+0x268,
@@ -34,12 +38,10 @@ use ilhook::x64::{HookType, Registers};
 use poe_hook_shared::{mem::read, module::Module};
 use poe_proto::{Direction, OpcodeTable};
 
-const READ_MESSAGE: usize = 0x1421c5950;
-const FLUSH_PLAINTEXT: usize = 0x142198037;
-const SESSION_SEND: usize = 0x14211f880;
-/// Callers of `READ_MESSAGE` (function ranges): login and instance sessions.
-const LOGIN_READER: std::ops::Range<usize> = 0x1420e6bc0..0x1420e7136;
-const INSTANCE_READER: std::ops::Range<usize> = 0x142120b70..0x1421215b5;
+/// Function ranges of the callers of the message reader (the login and the instance session's
+/// receive loops), from the `login_session_loop` / `instance_session_loop` signatures and
+/// `.pdata`.
+static READERS: OnceLock<(std::ops::Range<usize>, std::ops::Range<usize>)> = OnceLock::new();
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash, Debug, PartialOrd, Ord)]
 pub enum Channel {
@@ -124,6 +126,17 @@ static WRITER: Mutex<Option<Sender<Arc<Msg>>>> = Mutex::new(None);
 static COVERAGE: Mutex<Option<Coverage>> = Mutex::new(None);
 
 pub fn init(main: &Module) -> Result<(), String> {
+    // Everything is resolved before anything is installed.
+    let read_message = crate::sigs::addr("read_message")?;
+    let session_send = crate::sigs::addr("session_send")?;
+    let flush_plaintext = crate::sigs::addr("packet_flush_plaintext")?;
+    let (Some(login), Some(instance)) = (
+        crate::sigs::function_range("login_session_loop"),
+        crate::sigs::function_range("instance_session_loop"),
+    ) else {
+        return Err("no .pdata range for the session receive loops".into());
+    };
+    READERS.set((login, instance)).ok();
     MAIN.set(*main).ok();
     tables();
     *COVERAGE.lock().unwrap() = Some(Coverage::load());
@@ -131,21 +144,9 @@ pub fn init(main: &Module) -> Result<(), String> {
     let (tx, rx) = channel();
     *WRITER.lock().unwrap() = Some(tx);
     crate::hooks::spawn(move || writer(rx));
-    crate::hooks::install(
-        main.from_ghidra(READ_MESSAGE),
-        HookType::Retn(on_read_message),
-        0,
-    )?;
-    crate::hooks::install(
-        main.from_ghidra(SESSION_SEND),
-        HookType::Retn(on_session_send),
-        0,
-    )?;
-    crate::hooks::install(
-        main.from_ghidra(FLUSH_PLAINTEXT),
-        HookType::JmpBack(on_flush),
-        0,
-    )?;
+    crate::hooks::install(read_message, HookType::Retn(on_read_message), 0)?;
+    crate::hooks::install(session_send, HookType::Retn(on_session_send), 0)?;
+    crate::hooks::install(flush_plaintext, HookType::JmpBack(on_flush), 0)?;
     Ok(())
 }
 
@@ -192,23 +193,23 @@ pub fn describe(msg: &Msg) -> Option<String> {
     })
 }
 
-/// Bodies dropped with `[packets] redact`: Steam ticket and machine hashes, session tokens,
-/// account names, instance tickets and key material. The instance ticket travels in client
-/// `0x000e`, sent right after `0x000f` Hello (not named in the protocol table yet).
+/// Bodies dropped with `[packets] redact`: Steam ticket and machine hashes, the standalone
+/// login's credentials, session tokens, account names, instance tickets and key material. The
+/// rules (by message name, and every login message on a build the table does not know) are in
+/// `poe_hook_shared::redact`.
 fn secret(channel: Channel, dir: Dir, opcode: u16, name: Option<&str>) -> bool {
-    (channel, dir, opcode) == (Channel::Instance, Dir::Out, 0x000e)
-        || matches!(
-            (channel, dir, name),
-            (
-                Channel::Login,
-                Dir::Out,
-                Some("Authenticate" | "ResumeSession")
-            ) | (
-                Channel::Login,
-                Dir::In,
-                Some("AuthenticationResult" | "InstanceDetails")
-            ) | (Channel::Instance, Dir::Out, Some("Hello"))
-        )
+    use poe_hook_shared::redact;
+    redact::is_secret(
+        match channel {
+            Channel::Login => redact::Channel::Login,
+            Channel::Instance => redact::Channel::Instance,
+            Channel::Other => redact::Channel::Other,
+        },
+        dir == Dir::Out,
+        opcode,
+        name,
+        crate::sigs::verified(),
+    )
 }
 
 fn channel_of(stream: usize) -> Option<Channel> {
@@ -330,7 +331,7 @@ unsafe extern "win64" fn on_read_message(regs: *mut Registers, original: usize, 
     let mut guard = crate::hook_guard!("packets::on_read_message");
     let r = unsafe { &*regs };
     let (registry, stream) = (r.rcx as usize, r.rdx as usize);
-    let before = read::<usize>(stream + 0x268);
+    let before = read::<usize>(stream + crate::sigs::off().stream_recv_head);
     let caller = read::<usize>(r.rsp as usize).unwrap_or(0);
     let f: ReadFn = unsafe { std::mem::transmute(original) };
     crate::protocol::begin(stream, false, 0);
@@ -351,10 +352,11 @@ fn capture_received(
     caller: usize,
     fields: Vec<crate::protocol::Field>,
 ) {
+    let o = crate::sigs::off();
     let (Some(base), Some(end), Some(after)) = (
-        read::<usize>(stream + 0x298),
-        read::<usize>(stream + 0x2a0),
-        read::<usize>(stream + 0x268),
+        read::<usize>(stream + o.stream_recv_base),
+        read::<usize>(stream + o.stream_recv_end),
+        read::<usize>(stream + o.stream_recv_head),
     ) else {
         return;
     };
@@ -375,9 +377,9 @@ fn capture_received(
         data.extend_from_slice(&ring[start..]);
         data.extend_from_slice(&ring[..len - (size - start)]);
     }
-    let channel = match MAIN.get().map(|m| m.to_ghidra(caller)) {
-        Some(a) if LOGIN_READER.contains(&a) => Channel::Login,
-        Some(a) if INSTANCE_READER.contains(&a) => Channel::Instance,
+    let channel = match READERS.get() {
+        Some((login, _)) if login.contains(&caller) => Channel::Login,
+        Some((_, instance)) if instance.contains(&caller) => Channel::Instance,
         _ => channel_of(stream).unwrap_or(Channel::Other),
     };
     set_channel(stream, channel);
@@ -396,9 +398,9 @@ unsafe extern "win64" fn on_session_send(regs: *mut Registers, original: usize, 
     let mut guard = crate::hook_guard!("packets::on_session_send");
     let r = unsafe { &*regs };
     let (session, packet) = (r.rcx as usize, r.rdx as usize);
-    let stream = read::<usize>(session + 0x20f8).unwrap_or(0);
+    let stream = read::<usize>(session + crate::sigs::off().session_stream).unwrap_or(0);
     let opcode = read::<u16>(packet + 8).unwrap_or(0);
-    let start = read::<usize>(stream + 0x258);
+    let start = read::<usize>(stream + crate::sigs::off().stream_send_len);
     if let Some(start) = start {
         SENDS
             .lock()
@@ -413,12 +415,14 @@ unsafe extern "win64" fn on_session_send(regs: *mut Registers, original: usize, 
     let ret = guard
         .original(|| unsafe { f(r.rcx as usize, r.rdx as usize, r.r8 as usize, r.r9 as usize) });
     let fields = crate::protocol::end();
-    if let (Some(start), Some(end)) = (start, read::<usize>(stream + 0x258))
-        && let Some(list) = SENDS
-            .lock()
-            .unwrap()
-            .as_mut()
-            .and_then(|m| m.get_mut(&stream))
+    if let (Some(start), Some(end)) = (
+        start,
+        read::<usize>(stream + crate::sigs::off().stream_send_len),
+    ) && let Some(list) = SENDS
+        .lock()
+        .unwrap()
+        .as_mut()
+        .and_then(|m| m.get_mut(&stream))
         && let Some(open) = list
             .iter_mut()
             .rev()
@@ -434,10 +438,11 @@ unsafe extern "win64" fn on_session_send(regs: *mut Registers, original: usize, 
 unsafe extern "win64" fn on_flush(regs: *mut Registers, _: usize) {
     let _guard = crate::hook_guard!("packets::on_flush");
     let stream = unsafe { (*regs).rbx } as usize;
+    let o = crate::sigs::off();
     let (Some(base), Some(sent), Some(len)) = (
-        read::<usize>(stream + 0x280),
-        read::<usize>(stream + 0x260),
-        read::<usize>(stream + 0x258),
+        read::<usize>(stream + o.stream_send_buf),
+        read::<usize>(stream + o.stream_send_sent),
+        read::<usize>(stream + o.stream_send_len),
     ) else {
         return;
     };

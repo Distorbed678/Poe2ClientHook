@@ -37,88 +37,86 @@ use poe_hook_shared::{
 
 /// Generator driver: `(generator)`; generator +0x28 terrain, +0x30 generation state (+4 seed),
 /// +0x38 world.
-const DRIVER: usize = 0x141ffe940;
+const DRIVER: &str = "terrain_driver";
 /// Seeds the thread-local terrain RNG: `(u32 seed, u8 disabled)`.
-const SEED_RNG: usize = 0x141f9c020;
+const SEED_RNG: &str = "terrain_seed_rng";
 /// `std::mt19937` next value: `(state)` (state +0 index, +4.. words).
-const MT_NEXT: usize = 0x140a58a70;
+const MT_NEXT: &str = "mt_next";
 /// MSVC `uniform_int` helper: `(&{state, bits, mask}, n)` -> value in `0..n`.
-const UNIFORM: usize = 0x141f0d7f0;
+const UNIFORM: &str = "uniform_int";
 /// `TerrainRng_Below(n)` / `TerrainRng_Range(a, b)`: logged with their exact call site.
-const RNG_BELOW: usize = 0x141f9c270;
-const RNG_RANGE: usize = 0x141f9c340;
+const RNG_BELOW: &str = "rng_below";
+const RNG_RANGE: &str = "rng_range";
 /// Room pass (`0x141f8e6c0`), right after the tile-set lookup: rax = the candidate list
 /// (begin, end; 0x18-byte entries: tile resource, u8 orientation, i32 weight at +0x10; +0x18
 /// total weight). Logged in the generator trace.
-const ROOM_CANDIDATES: usize = 0x141f8ed45;
+const ROOM_CANDIDATES: &str = "room_candidates";
 /// Place a tile: `(terrain context, x, y, &tile, u8 orientation, i32 height, u8)`.
-const PLACE_TILE: usize = 0x141f9e2e0;
+const PLACE_TILE: &str = "place_tile";
 /// De-repetition pass `(ctx, region, ...)`: region +0x58..+0x60 lists room placements
 /// (0x38 bytes, +0 room resource); room data (+0x28) +0xe8 is a (w-1)×(h-1) grid of resource
 /// pointers at interior lattice points (pieces touching a set point are not re-picked).
-const DEREPEAT: usize = 0x141fdd7c0;
+const DEREPEAT: &str = "derepeat";
 /// Graph node placement (`0x1420c87a0`: context, result out, node): the room or tile picked
 /// for a room node and its position (result +0x70).
-const NODE_PLACE: usize = 0x1420c87a0;
+const NODE_PLACE: &str = "node_place";
 /// Room/tile candidates of a node (`0x1420c76d0`: list out, node, room type, key, ..., ...):
 /// 0x68-byte entries (name view +0/+8, variant byte +0x10, size +0x31/+0x32, weight +0x60).
-const NODE_CANDIDATES: usize = 0x1420c76d0;
+const NODE_CANDIDATES: &str = "node_candidates";
 /// Edge routing (`0x1420cd460`: router, edge) → bool: the edge's ends (+0x20/+0x28 nodes,
 /// position +0x4c), end offsets (+0x70/+0x78) and internal points (+8..+0x10) afterwards.
-const ROUTE_EDGE: usize = 0x1420cd460;
+const ROUTE_EDGE: &str = "route_edge";
 /// Virtual-edge splitting (`0x1420bc400`: layout (+0x20 graph), ...): the graph afterwards.
-const SPLIT_VIRTUAL: usize = 0x1420bc400;
+const SPLIT_VIRTUAL: &str = "split_virtual";
 /// Edge smoothing after routing (`0x1420bd650`: layout, flag): the graph afterwards.
-const SMOOTH_EDGES: usize = 0x1420bd650;
+const SMOOTH_EDGES: &str = "smooth_edges";
 /// Arc at a virtual edge's start / end (`0x1420d1b70` / `0x1420d2470`: ctx, edge) and corner
 /// rounding (`0x1420b2f60`: ctx, edge, from end).
-const ARC_START: usize = 0x1420d1b70;
-const ARC_END: usize = 0x1420d2470;
-const ROUND_CORNERS: usize = 0x1420b2f60;
+const ARC_START: &str = "arc_start";
+const ARC_END: &str = "arc_end";
+const ROUND_CORNERS: &str = "round_corners";
 /// Edge tile placement stage (`0x1420b6950`: layout ...): the graph on entry.
-const EDGE_TILES: usize = 0x1420b6950;
+const EDGE_TILES: &str = "edge_tiles";
 /// Steps between edge tiles and the fill pass that edit the corner lattice (ground index,
 /// height, flags per tile corner): snapshots before each (`lattice` trace lines).
-const LATTICE_STEPS: &[(usize, &str, usize)] = &[
-    (0x1420b94d0, "borders", 0x28),
-    (0x1420c0a60, "flood", 0x8),
-    (0x1420b9820, "heights", 0x28),
-    (0x141f92ce0, "92ce0", 0x0),
-    (0x1420bdae0, "bdae0", 0x28),
-    (0x1420be360, "be360", 0x28),
-    (0x141f93060, "fill", 0x8),
+const LATTICE_STEPS: &[(&str, &str, usize)] = &[
+    ("lattice_borders", "borders", 0x28),
+    ("lattice_flood", "flood", 0x8),
+    ("lattice_heights", "heights", 0x28),
+    ("lattice_92ce0", "92ce0", 0x0),
+    ("lattice_bdae0", "bdae0", 0x28),
+    ("lattice_be360", "be360", 0x28),
+    ("lattice_fill", "fill", 0x8),
 ];
 /// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
-const TILE_LOOKUP: usize = 0x141d0a4c0;
+const TILE_LOOKUP: &str = "tile_lookup";
 /// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
-const PATH_CROSSINGS: usize = 0x1420b7490;
+const PATH_CROSSINGS: &str = "path_crossings";
 /// Generator vfunc +0x38: adds a created object (doodad or tile entity) to the world:
 /// `(generator, entity, region)`.
-const ADD_OBJECT: usize = 0x141ff7770;
+const ADD_OBJECT: &str = "terrain_add_object";
 /// Inside the per-tile doodad pass (`0x141ff3310`), right after the doodad's path hash: eax =
 /// path hash, [rsp+0x70]/[rsp+0x74] = placed x/y (cells), [rsp+0x84] = angle, r15 = the tile's
 /// doodad entry (+0x38: the art resource). The doodad hash is the wrapping sum of
 /// `y + path hash + (x << 16)` over these.
-const DOODAD_HASH_SITE: usize = 0x141ff3643;
-/// Positioned component's initial-state reader (identifies the component by its vtable).
-const POSITIONED_READER: usize = 0x141dd8820;
+const DOODAD_HASH_SITE: &str = "doodad_hash_site";
 /// Generator phases (driver order); names are provisional.
-const PHASES: &[(usize, &str)] = &[
-    (0x141ffe7f0, "prepare"),
-    (0x141ffcad0, "phase_cad0"),
-    (0x141ffc360, "phase_c360"),
-    (0x141ffdab0, "phase_dab0"),
-    (0x141ffde60, "phase_de60"),
-    (0x141ffb930, "phase_b930"),
-    (0x141d0e5f0, "terrain_e5f0"),
-    (0x141ffab20, "vt50_ab20"),
-    (0x141ff5550, "doodads"),
-    (0x141ff3310, "tile_doodads"),
-    (0x141ff3eb0, "vt28_3eb0"),
-    (0x141ff4730, "vt58_4730"),
-    (0x141ff4b50, "doodads_post"),
-    (0x141ffe0a0, "heights_post"),
-    (0x141d141d0, "tile_hash"),
+const PHASES: &[(&str, &str)] = &[
+    ("phase_prepare", "prepare"),
+    ("phase_cad0", "phase_cad0"),
+    ("phase_c360", "phase_c360"),
+    ("phase_dab0", "phase_dab0"),
+    ("phase_de60", "phase_de60"),
+    ("phase_b930", "phase_b930"),
+    ("phase_terrain_e5f0", "terrain_e5f0"),
+    ("phase_vt50_ab20", "vt50_ab20"),
+    ("phase_doodads", "doodads"),
+    ("tile_doodads", "tile_doodads"),
+    ("phase_vt28_3eb0", "vt28_3eb0"),
+    ("phase_vt58_4730", "vt58_4730"),
+    ("phase_doodads_post", "doodads_post"),
+    ("phase_heights_post", "heights_post"),
+    ("phase_tile_hash", "tile_hash"),
 ];
 /// Tile records: terrain +0x18 width, +0x20 height (in tiles, 23 cells each), +0x28 records
 /// (0x38 bytes, row-major).
@@ -169,42 +167,59 @@ struct Area {
 }
 
 pub fn init(main: &Module, export: bool, trace: bool) -> Result<(), String> {
+    // Resolve every address of the enabled parts before anything is installed.
+    let addr = |name: &str| crate::sigs::addr(name);
+    let mut plan: Vec<(usize, HookType, usize)> = Vec::new();
+    if export {
+        plan.push((addr(DRIVER)?, HookType::Retn(on_driver), 0));
+        plan.push((addr(ADD_OBJECT)?, HookType::JmpBack(on_add_object), 0));
+        plan.push((addr(DOODAD_HASH_SITE)?, HookType::JmpBack(on_doodad), 0));
+    }
+    if trace {
+        // The trace also needs the driver (it brackets each generation) but not the export.
+        if !export {
+            plan.push((addr(DRIVER)?, HookType::Retn(on_driver), 0));
+        }
+        plan.push((addr(SEED_RNG)?, HookType::JmpBack(on_seed), 0));
+        plan.push((addr(MT_NEXT)?, HookType::Retn(on_mt_next), 0));
+        plan.push((addr(UNIFORM)?, HookType::Retn(on_uniform), 0));
+        plan.push((addr(RNG_BELOW)?, HookType::JmpBack(on_rng_call), 0));
+        plan.push((addr(ROOM_CANDIDATES)?, HookType::JmpBack(on_candidates), 0));
+        plan.push((addr(PLACE_TILE)?, HookType::JmpBack(on_place), 0));
+        plan.push((addr(DEREPEAT)?, HookType::JmpBack(on_derepeat), 0));
+        plan.push((addr(NODE_PLACE)?, HookType::Retn(on_node_place), 0));
+        plan.push((
+            addr(NODE_CANDIDATES)?,
+            HookType::Retn(on_node_candidates),
+            0,
+        ));
+        plan.push((addr(ROUTE_EDGE)?, HookType::Retn(on_route_edge), 0));
+        plan.push((addr(SPLIT_VIRTUAL)?, HookType::Retn(on_split_virtual), 0));
+        plan.push((addr(SMOOTH_EDGES)?, HookType::Retn(on_smooth_edges), 0));
+        plan.push((addr(ARC_START)?, HookType::Retn(on_edge_step), 0));
+        plan.push((addr(ARC_END)?, HookType::Retn(on_edge_step), 1));
+        plan.push((addr(ROUND_CORNERS)?, HookType::Retn(on_edge_step), 2));
+        plan.push((addr(EDGE_TILES)?, HookType::JmpBack(on_edge_tiles), 0));
+        plan.push((addr(TILE_LOOKUP)?, HookType::JmpBack(on_tile_lookup), 0));
+        plan.push((
+            addr(PATH_CROSSINGS)?,
+            HookType::JmpBack(on_path_crossings),
+            0,
+        ));
+        for (i, (sig, _, _)) in LATTICE_STEPS.iter().enumerate() {
+            plan.push((addr(sig)?, HookType::JmpBack(on_lattice_step), i));
+        }
+        plan.push((addr(RNG_RANGE)?, HookType::JmpBack(on_rng_call), 1));
+        for (i, (sig, _)) in PHASES.iter().enumerate() {
+            plan.push((addr(sig)?, HookType::JmpBack(on_phase), i));
+        }
+    }
     MAIN.set(*main).ok();
     EXPORT.store(export, Ordering::Relaxed);
     TRACE.store(trace, Ordering::Relaxed);
-    let hook = |ghidra: usize, kind: HookType, user: usize| {
-        crate::hooks::install(main.from_ghidra(ghidra), kind, user)
-            .map_err(|e| format!("hook {ghidra:#x}: {e}"))
-    };
-    hook(DRIVER, HookType::Retn(on_driver), 0)?;
-    hook(ADD_OBJECT, HookType::JmpBack(on_add_object), 0)?;
-    hook(DOODAD_HASH_SITE, HookType::JmpBack(on_doodad), 0)?;
-    if trace {
-        hook(SEED_RNG, HookType::JmpBack(on_seed), 0)?;
-        hook(MT_NEXT, HookType::Retn(on_mt_next), 0)?;
-        hook(UNIFORM, HookType::Retn(on_uniform), 0)?;
-        hook(RNG_BELOW, HookType::JmpBack(on_rng_call), 0)?;
-        hook(ROOM_CANDIDATES, HookType::JmpBack(on_candidates), 0)?;
-        hook(PLACE_TILE, HookType::JmpBack(on_place), 0)?;
-        hook(DEREPEAT, HookType::JmpBack(on_derepeat), 0)?;
-        hook(NODE_PLACE, HookType::Retn(on_node_place), 0)?;
-        hook(NODE_CANDIDATES, HookType::Retn(on_node_candidates), 0)?;
-        hook(ROUTE_EDGE, HookType::Retn(on_route_edge), 0)?;
-        hook(SPLIT_VIRTUAL, HookType::Retn(on_split_virtual), 0)?;
-        hook(SMOOTH_EDGES, HookType::Retn(on_smooth_edges), 0)?;
-        hook(ARC_START, HookType::Retn(on_edge_step), 0)?;
-        hook(ARC_END, HookType::Retn(on_edge_step), 1)?;
-        hook(ROUND_CORNERS, HookType::Retn(on_edge_step), 2)?;
-        hook(EDGE_TILES, HookType::JmpBack(on_edge_tiles), 0)?;
-        hook(TILE_LOOKUP, HookType::JmpBack(on_tile_lookup), 0)?;
-        hook(PATH_CROSSINGS, HookType::JmpBack(on_path_crossings), 0)?;
-        for (i, (addr, _, _)) in LATTICE_STEPS.iter().enumerate() {
-            hook(*addr, HookType::JmpBack(on_lattice_step), i)?;
-        }
-        hook(RNG_RANGE, HookType::JmpBack(on_rng_call), 1)?;
-        for (i, (addr, _)) in PHASES.iter().enumerate() {
-            hook(*addr, HookType::JmpBack(on_phase), i)?;
-        }
+    for (target, kind, user) in plan {
+        crate::hooks::install(target, kind, user)
+            .map_err(|e| format!("hook {:#x}: {e}", crate::sigs::ghidra(target)))?;
     }
     crate::hooks::spawn(probe_loop);
     Ok(())
@@ -252,15 +267,16 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
     let mut guard = crate::hook_guard!("terrain_tools::on_driver");
     let r = unsafe { &*regs };
     let generator = r.rcx as usize;
-    let world = read::<usize>(generator + 0x38).unwrap_or(0);
-    let seed = read::<usize>(generator + 0x30)
-        .and_then(|s| read::<u32>(s + 4))
+    let o = crate::sigs::off();
+    let world = read::<usize>(generator + o.generator_world).unwrap_or(0);
+    let seed = read::<usize>(generator + o.generator_state)
+        .and_then(|s| read::<u32>(s + o.state_seed))
         .unwrap_or(0);
     take_mine(&GEN_OBJECTS);
     take_mine(&DOODADS);
     // The trace follows playable areas only (world-map panels generate in parallel).
-    let kind = read::<usize>(world + 0x98)
-        .and_then(|a| read::<u32>(a + 0x1b4))
+    let kind = read::<usize>(world + o.world_area)
+        .and_then(|a| read::<u32>(a + o.area_kind))
         .unwrap_or(0);
     let traced = !matches!(kind, 0x20 | 0x21 | 0x23);
     if traced && TRACE.load(Ordering::Relaxed) {
@@ -928,7 +944,8 @@ unsafe extern "win64" fn on_phase(regs: *mut Registers, index: usize) {
         return;
     }
     let r = unsafe { &*regs };
-    let (addr, name) = PHASES[index];
+    let (sig, name) = PHASES[index];
+    let addr = crate::sigs::addr(sig).map_or(0, crate::sigs::ghidra);
     trace_line(
         "phase",
         &callers(r.rsp as usize, 2),
@@ -1063,9 +1080,10 @@ struct Tiles {
 }
 
 fn tiles(terrain: usize) -> Option<Tiles> {
-    let w = read::<u32>(terrain + 0x18)? as usize;
-    let h = read::<u32>(terrain + 0x20)? as usize;
-    let records = read::<usize>(terrain + 0x28)?;
+    let o = crate::sigs::off();
+    let w = read::<u32>(terrain + o.terrain_width)? as usize;
+    let h = read::<u32>(terrain + o.terrain_height)? as usize;
+    let records = read::<usize>(terrain + o.terrain_tiles)?;
     (w > 0 && h > 0 && w * h < 1_000_000 && readable(records, w * h * TILE_RECORD))
         .then_some(Tiles { w, h, records })
 }
@@ -1144,25 +1162,31 @@ fn layout(t: &Tiles) -> (String, u32) {
 
 /// An object's Positioned data: grid cell, world position, facing.
 fn positioned(entity: usize) -> Option<((i32, i32), (f32, f32), f32)> {
-    let m = MAIN.get()?;
-    let reader = m.from_ghidra(POSITIONED_READER);
+    let reader = crate::sigs::addr("positioned_reader").ok()?;
+    let o = crate::sigs::off();
     let comps = crate::entities::components(entity);
     let pos = comps.into_iter().find(|&c| {
         read::<usize>(c)
-            .and_then(|vt| read::<usize>(vt + 0x98))
+            .and_then(|vt| read::<usize>(vt + o.component_vt_reader))
             .is_some_and(|f| f == reader)
     })?;
     Some((
-        (read::<i32>(pos + 0x444)?, read::<i32>(pos + 0x448)?),
-        (read::<f32>(pos + 0x490)?, read::<f32>(pos + 0x494)?),
-        read::<f32>(pos + 0x44c)?,
+        (
+            read::<i32>(pos + o.positioned_grid_x)?,
+            read::<i32>(pos + o.positioned_grid_y)?,
+        ),
+        (
+            read::<f32>(pos + o.positioned_world_x)?,
+            read::<f32>(pos + o.positioned_world_y)?,
+        ),
+        read::<f32>(pos + o.positioned_facing)?,
     ))
 }
 
 fn entity_line(source: &str, entity: usize, region: usize) -> Option<String> {
-    let resource = read::<usize>(entity + 8)?;
+    let resource = read::<usize>(entity + crate::sigs::off().entity_type)?;
     let path = resource_path(resource);
-    let id = read::<u32>(entity + 0x88).unwrap_or(0);
+    let id = read::<u32>(entity + crate::sigs::off().entity_id).unwrap_or(0);
     let (cell, world, facing) = positioned(entity)
         .map(|(c, w, f)| {
             (
@@ -1220,9 +1244,9 @@ fn export_area(
         log::warn!("area export: no terrain object");
         return;
     };
-    let area_row = read::<usize>(world + 0x98).unwrap_or(0);
+    let area_row = read::<usize>(world + crate::sigs::off().world_area).unwrap_or(0);
     let hash16 = read::<u16>(area_row + 0x2a).unwrap_or(0);
-    let kind = read::<u32>(area_row + 0x1b4).unwrap_or(0);
+    let kind = read::<u32>(area_row + crate::sigs::off().area_kind).unwrap_or(0);
     let n = AREA_COUNT.fetch_add(1, Ordering::Relaxed);
     let name = format!("{n:02}_{hash16:04x}_{seed}");
     let session = crate::host::session_dir();
@@ -1239,8 +1263,8 @@ fn export_area(
         log::error!("area export: {e}");
         return;
     }
-    let tile_hash = read::<u32>(world + 0x114).unwrap_or(0);
-    let doodad_hash = read::<u32>(world + 0x118).unwrap_or(0);
+    let tile_hash = read::<u32>(world + crate::sigs::off().world_tile_hash).unwrap_or(0);
+    let doodad_hash = read::<u32>(world + crate::sigs::off().world_doodad_hash).unwrap_or(0);
     let mut meta = format!(
         "area_hash16\t{hash16:#06x}\nseed\t{seed}\narea_kind\t{kind:#x}\nworld_4b0\t{}\nworld_4b4\t{}\ntile_hash\t{tile_hash}\ndoodad_hash\t{doodad_hash}\n",
         read::<u32>(world + 0x4b0).unwrap_or(0),

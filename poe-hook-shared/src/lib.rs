@@ -6,7 +6,10 @@ pub mod config;
 pub mod login;
 pub mod mem;
 pub mod module;
+pub mod offsets;
+pub mod redact;
 pub mod sidechannel;
+pub mod sigs;
 pub mod trust;
 pub mod window;
 

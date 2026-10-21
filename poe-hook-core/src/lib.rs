@@ -31,6 +31,7 @@ mod position_sync;
 mod protocol;
 mod scanner;
 mod side;
+mod sigs;
 mod snapshot;
 mod symbols;
 mod terrain_tools;
@@ -129,9 +130,41 @@ fn report(name: &str, enabled: bool, init: impl FnOnce() -> Result<(), String>) 
     }
 }
 
+/// Like [`report`], for a feature whose hooks come from the signature table: it does not start
+/// (and says why) when one of its signatures or fields did not resolve.
+fn report_sig(
+    name: &str,
+    enabled: bool,
+    sig_feature: &str,
+    read_only: bool,
+    init: impl FnOnce() -> Result<(), String>,
+) {
+    if enabled && let Err(e) = sigs::gate(sig_feature, read_only) {
+        log::error!("feature {name}: OFF: {e}");
+        return;
+    }
+    report(name, enabled, init);
+}
+
+/// `wanted` and the feature's signatures resolved (logged when wanted but not possible).
+fn sig_enabled(name: &str, wanted: bool, read_only: bool) -> bool {
+    if !wanted {
+        return false;
+    }
+    match sigs::gate(name, read_only) {
+        Ok(()) => true,
+        Err(e) => {
+            log::error!("feature {name}: OFF: {e}");
+            false
+        }
+    }
+}
+
 fn start_features(config: &Config, main: &Module) {
     let f = &config.features;
     let read_only = host::read_only();
+    // Every hook address, patch site and struct offset comes from the signature table.
+    sigs::init(main);
     let first_load = host::reload_count() == 0;
     // POE_HOOK_TRACE (comma-separated Ghidra addresses) adds to `trace_addresses` (RE tests).
     let mut addresses = f.trace_addresses.clone();
@@ -143,9 +176,17 @@ fn start_features(config: &Config, main: &Module) {
                 .filter(|a| !a.is_empty()),
         );
     }
-    position_sync::ENABLED.store(f.position_sync && !read_only, Ordering::Relaxed);
+    // Position sync reads the player's components from the entity tick hook of
+    // `dump_object_types`, so it needs both.
+    let ps_wanted = f.position_sync && !read_only;
+    let ps_ok = sig_enabled("position_sync", ps_wanted, read_only)
+        && sig_enabled("dump_object_types", f.dump_object_types, read_only);
+    position_sync::ENABLED.store(ps_ok, Ordering::Relaxed);
     position_sync::PORT.store(f.position_sync_port, Ordering::Relaxed);
-    dump_types::ENTITY_TRACE.store(f.entity_trace, Ordering::Relaxed);
+    dump_types::ENTITY_TRACE.store(
+        sig_enabled("entity_trace", f.entity_trace, read_only),
+        Ordering::Relaxed,
+    );
     dump_types::MOVEMENT_LOG.store(
         f.movement_log || std::env::var_os("POE_HOOK_MOVEMENT_LOG").is_some(),
         Ordering::Relaxed,
@@ -154,12 +195,22 @@ fn start_features(config: &Config, main: &Module) {
     report("exit_trace", f.crash_log, || exit_trace::init(main));
     // Official servers need the real handshake; the hook also passes through once the latch is
     // on.
-    report("crypto_bypass", f.crypto_bypass && !read_only, || {
-        crypto_bypass::init(main)
-    });
+    report_sig(
+        "crypto_bypass",
+        f.crypto_bypass && !read_only,
+        "crypto_bypass",
+        read_only,
+        || crypto_bypass::init(main),
+    );
     // The authenticated side channel (position reports, debug link, terrain upload) needs the
     // instance session keys; never captured on official servers.
-    report("side_channel", !read_only, || side::init(main));
+    report_sig(
+        "side_channel",
+        !read_only,
+        "side_channel",
+        read_only,
+        || side::init(main),
+    );
     report("net_trace", f.net_trace, || {
         net_trace::init(
             main,
@@ -169,17 +220,35 @@ fn start_features(config: &Config, main: &Module) {
             },
         )
     });
-    report("packets", config.packets.capture, || {
-        packets::init(main)?;
-        protocol::init(main)
-    });
+    report_sig(
+        "packets",
+        config.packets.capture,
+        "packets",
+        read_only,
+        || {
+            packets::init(main)?;
+            // The field tracer hooks the stream primitives: not on an official server with an
+            // executable the table was not made for (only the observers there).
+            if read_only && !sigs::verified() {
+                log::warn!("packets: field tracer off (unverified build on an official server)");
+                return Ok(());
+            }
+            protocol::init(main)
+        },
+    );
     let object_types = dump_path("client-tables", "object_types.txt");
-    report("dump_object_types", f.dump_object_types, || {
-        dump_types::init(main, object_types)
-    });
+    report_sig(
+        "dump_object_types",
+        f.dump_object_types,
+        "dump_object_types",
+        read_only,
+        || dump_types::init(main, object_types),
+    );
     let generator_trace = f.generator_trace || std::env::var_os("POE_HOOK_GEN_TRACE").is_some();
-    report("area_export", f.area_export || generator_trace, || {
-        terrain_tools::init(main, f.area_export, generator_trace)
+    let export = sig_enabled("area_export", f.area_export, read_only);
+    let trace = sig_enabled("generator_trace", generator_trace, read_only);
+    report("area_export", export || trace, || {
+        terrain_tools::init(main, export, trace)
     });
     report("trace_calls", !addresses.is_empty(), || {
         trace_calls::init(main, &addresses, f.trace_limit.max(200))

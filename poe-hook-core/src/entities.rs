@@ -2,9 +2,10 @@
 //! initial-state reader), with its object type (the key the object-type lookup resolved just
 //! before, and that key's metadata path). Values are read live, with guarded reads only.
 //!
-//! Layout (0.5.5e): entity +0x10/+0x18 component vector, +0x88 id. A component's vtable slot
-//! +0x98 is its initial-state reader; Positioned's is `0x141dd8820` (grid +0x444/+0x448,
-//! world +0x490/+0x494, facing +0x44c).
+//! Layout (0.5.5e values; the offsets come from the signature table): entity +0x10/+0x18
+//! component vector, +0x88 id. A component's vtable slot +0x98 is its initial-state reader;
+//! Positioned's is `positioned_reader` (`0x141dd8820`; grid +0x444/+0x448, world
+//! +0x490/+0x494, facing +0x44c).
 
 use std::{
     collections::HashMap,
@@ -16,7 +17,6 @@ use std::{
 
 use poe_hook_shared::mem::read;
 
-const POSITIONED_READER: usize = 0x141dd8820;
 const KEEP: usize = 20_000;
 
 static LAST_KEY: AtomicU32 = AtomicU32::new(0);
@@ -72,8 +72,10 @@ pub fn adopt(ptr: usize, id: u32) {
 
 fn add(ptr: usize, id: u32, key: u32) {
     let main = crate::dump_types::main_module();
-    let begin = read::<usize>(ptr + 0x10).unwrap_or(0);
-    let end = read::<usize>(ptr + 0x18).unwrap_or(0);
+    let o = crate::sigs::off();
+    let positioned_reader = crate::sigs::addr("positioned_reader").ok();
+    let begin = read::<usize>(ptr + o.entity_components_begin).unwrap_or(0);
+    let end = read::<usize>(ptr + o.entity_components_end).unwrap_or(0);
     let count = (end.saturating_sub(begin) / 8).min(64);
     let mut components = Vec::with_capacity(count);
     let mut positioned = None;
@@ -86,8 +88,8 @@ fn add(ptr: usize, id: u32, key: u32) {
             .map_or(vt, |m| m.to_ghidra(vt));
         let reader = main
             .filter(|m| m.contains(vt))
-            .and_then(|m| read::<usize>(vt + 0x98).map(|r| m.to_ghidra(r)));
-        if reader == Some(POSITIONED_READER) && positioned.is_none() {
+            .and_then(|_| read::<usize>(vt + o.component_vt_reader));
+        if reader.is_some() && reader == positioned_reader && positioned.is_none() {
             positioned = Some(i);
         }
         components.push(ghidra);
@@ -115,7 +117,7 @@ pub fn clear() {
     ENTITIES
         .lock()
         .unwrap()
-        .retain(|e| read::<u32>(e.ptr + 0x88) == Some(e.id));
+        .retain(|e| read::<u32>(e.ptr + crate::sigs::off().entity_id) == Some(e.id));
 }
 
 pub fn list() -> Vec<Entity> {
@@ -123,16 +125,26 @@ pub fn list() -> Vec<Entity> {
 }
 
 pub fn live(e: &Entity) -> Live {
-    let alive = read::<u32>(e.ptr + 0x88) == Some(e.id);
-    let pos = e
-        .positioned
-        .filter(|_| alive)
-        .and_then(|i| read::<usize>(e.ptr + 0x10).and_then(|c| read::<usize>(c + i * 8)));
+    let o = crate::sigs::off();
+    let alive = read::<u32>(e.ptr + o.entity_id) == Some(e.id);
+    let pos = e.positioned.filter(|_| alive).and_then(|i| {
+        read::<usize>(e.ptr + o.entity_components_begin).and_then(|c| read::<usize>(c + i * 8))
+    });
     Live {
         alive,
-        grid: pos.and_then(|p| Some((read(p + 0x444)?, read(p + 0x448)?))),
-        world: pos.and_then(|p| Some((read(p + 0x490)?, read(p + 0x494)?))),
-        facing: pos.and_then(|p| read(p + 0x44c)),
+        grid: pos.and_then(|p| {
+            Some((
+                read(p + o.positioned_grid_x)?,
+                read(p + o.positioned_grid_y)?,
+            ))
+        }),
+        world: pos.and_then(|p| {
+            Some((
+                read(p + o.positioned_world_x)?,
+                read(p + o.positioned_world_y)?,
+            ))
+        }),
+        facing: pos.and_then(|p| read(p + o.positioned_facing)),
     }
 }
 
@@ -140,11 +152,19 @@ pub fn live(e: &Entity) -> Live {
 /// holds a sorted array of `{char* name, i32 index}` (16 bytes) from `+0x28` to `+0x30`, the
 /// table the game's get-component-by-name uses (e.g. `0x140150cb0` for "Render").
 pub fn component_names(ptr: usize) -> Vec<(usize, String)> {
-    let Some(lookup) = read::<usize>(ptr + 8).and_then(|t| read::<usize>(t + 0x28)) else {
+    if !crate::sigs::feature_ok("inspect") {
+        return Vec::new();
+    }
+    let o = crate::sigs::off();
+    let Some(lookup) =
+        read::<usize>(ptr + o.entity_type).and_then(|t| read::<usize>(t + o.type_lookup))
+    else {
         return Vec::new();
     };
-    let (Some(begin), Some(end)) = (read::<usize>(lookup + 0x28), read::<usize>(lookup + 0x30))
-    else {
+    let (Some(begin), Some(end)) = (
+        read::<usize>(lookup + o.lookup_names_begin),
+        read::<usize>(lookup + o.lookup_names_end),
+    ) else {
         return Vec::new();
     };
     if end < begin || end - begin > 256 * 16 {
@@ -164,8 +184,9 @@ pub fn component_names(ptr: usize) -> Vec<(usize, String)> {
 
 /// Component pointers of an entity (index order).
 pub fn components(ptr: usize) -> Vec<usize> {
-    let begin = read::<usize>(ptr + 0x10).unwrap_or(0);
-    let end = read::<usize>(ptr + 0x18).unwrap_or(0);
+    let o = crate::sigs::off();
+    let begin = read::<usize>(ptr + o.entity_components_begin).unwrap_or(0);
+    let end = read::<usize>(ptr + o.entity_components_end).unwrap_or(0);
     let count = (end.saturating_sub(begin) / 8).min(64);
     (0..count)
         .filter_map(|i| read::<usize>(begin + i * 8))

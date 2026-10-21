@@ -7,67 +7,48 @@
 //! email/password packet `0x0003`, and skips the Steam API. The loader (`poe-hook`) applies
 //! the patch in `DllMain`; this module holds the addresses and the pure byte logic.
 //!
-//! All addresses are Ghidra addresses (image base `0x140000000`) of client 0.5.5e.
-
-/// `ClientPlatform_Detect`, the function to patch.
-pub const CLIENT_PLATFORM_DETECT: usize = 0x1_4219_6ec0;
-/// Guard of the cached platform (thread-safe static): non-zero once the value was computed.
-pub const CLIENT_PLATFORM_CACHE_GUARD: usize = 0x1_4471_7114;
-/// The cached platform value (`i32`): 0 standalone, 1 Steam.
-pub const CLIENT_PLATFORM_CACHE_VALUE: usize = 0x1_4471_7118;
-
-/// The function's first bytes in 0.5.5e (`push rbp; push rbx`), checked before patching.
-pub const PLATFORM_DETECT_ORIGINAL: [u8; 3] = [0x40, 0x55, 0x53];
-/// `xor eax,eax; ret`: platform 0.
-pub const PLATFORM_DETECT_PATCH: [u8; 3] = [0x31, 0xC0, 0xC3];
-
-/// `StandalonePatcher_Run` (Ghidra `FUN_1401162d0`): called once from the start-up function
-/// (`FUN_14011b820`, call at `0x14011bf76`); returns `true` to go on. It returns at once for
-/// Steam/Epic, skips the patcher when `--success-event <n>` is given (and no
-/// `--disable-client-switching`), and otherwise opens the patcher window ("Language", news,
-/// progress bar, LAUNCH) and talks to GGG's patch servers.
-pub const STANDALONE_PATCHER_RUN: usize = 0x1_4011_62d0;
-/// First bytes of `StandalonePatcher_Run` (`mov rax,rsp; ...`), checked before patching.
-pub const PATCHER_RUN_ORIGINAL: [u8; 3] = [0x48, 0x8B, 0xC4];
-/// `mov al,1; ret`: "go on" without running the patcher.
-pub const PATCHER_RUN_PATCH: [u8; 3] = [0xB0, 0x01, 0xC3];
+//! Where the functions are, which bytes they must hold and what is written over them is in the
+//! signature table (`signatures/<version>.toml`: `client_platform_detect`,
+//! `standalone_patcher_run`, `platform_cache_guard`, `platform_cache_value`); see
+//! [`crate::sigs`]. This module only holds the pure byte logic.
+//!
+//! - `ClientPlatform_Detect`: patched to `xor eax,eax; ret` (platform 0).
+//! - `StandalonePatcher_Run` (called once from the start-up function; returns `true` to go
+//!   on): patched to `mov al,1; ret`. It returns at once for Steam/Epic, skips the patcher
+//!   when `--success-event <n>` is given (and no `--disable-client-switching`), and otherwise
+//!   opens the patcher window and talks to GGG's patch servers.
+//! - The cached platform (`i32`: 0 standalone, 1 Steam) has a thread-safe-static guard
+//!   (non-zero once the value was computed).
 
 /// The command-line option the patcher passes to the client it starts.
 pub const SUCCESS_EVENT_OPTION: &str = "--success-event";
 /// Makes the patcher run even with [`SUCCESS_EVENT_OPTION`].
 pub const DISABLE_CLIENT_SWITCHING_OPTION: &str = "--disable-client-switching";
 
-/// Outcome of [`patch_prologue`].
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+/// Outcome of [`patch_bytes`].
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum PatchOutcome {
     /// The original bytes were replaced.
     Patched,
     /// The patch was there already (a second call).
     AlreadyPatched,
     /// Neither the original nor the patch: another client build. Nothing was written.
-    Mismatch([u8; 3]),
+    Mismatch(Vec<u8>),
 }
 
-/// Replaces the first three bytes of `ClientPlatform_Detect` if (and only if) they are the
-/// expected original bytes.
-pub fn patch_prologue(code: &mut [u8; 3]) -> PatchOutcome {
-    patch_bytes(code, PLATFORM_DETECT_ORIGINAL, PLATFORM_DETECT_PATCH)
-}
-
-/// Replaces the first three bytes of `StandalonePatcher_Run` if (and only if) they are the
-/// expected original bytes.
-pub fn patch_patcher_run(code: &mut [u8; 3]) -> PatchOutcome {
-    patch_bytes(code, PATCHER_RUN_ORIGINAL, PATCHER_RUN_PATCH)
-}
-
-fn patch_bytes(code: &mut [u8; 3], original: [u8; 3], patch: [u8; 3]) -> PatchOutcome {
-    if *code == original {
-        *code = patch;
+/// Replaces `code` with `patch` if (and only if) it holds exactly the `original` bytes.
+/// All three slices have the same length.
+pub fn patch_bytes(code: &mut [u8], original: &[u8], patch: &[u8]) -> PatchOutcome {
+    if code.len() != original.len() || original.len() != patch.len() {
+        return PatchOutcome::Mismatch(code.to_vec());
+    }
+    if code == original {
+        code.copy_from_slice(patch);
         PatchOutcome::Patched
-    } else if *code == patch {
+    } else if code == patch {
         PatchOutcome::AlreadyPatched
     } else {
-        PatchOutcome::Mismatch(*code)
+        PatchOutcome::Mismatch(code.to_vec())
     }
 }
 
@@ -91,36 +72,41 @@ pub fn patcher_would_run(cmdline: &str) -> bool {
 mod tests {
     use super::*;
 
+    const DETECT: [u8; 3] = [0x40, 0x55, 0x53];
+    const DETECT_PATCH: [u8; 3] = [0x31, 0xC0, 0xC3];
+
     #[test]
     fn patches_only_the_expected_bytes() {
-        let mut code = PLATFORM_DETECT_ORIGINAL;
-        assert_eq!(patch_prologue(&mut code), PatchOutcome::Patched);
-        assert_eq!(code, [0x31, 0xC0, 0xC3]);
-        assert_eq!(patch_prologue(&mut code), PatchOutcome::AlreadyPatched);
+        let mut code = DETECT;
+        assert_eq!(
+            patch_bytes(&mut code, &DETECT, &DETECT_PATCH),
+            PatchOutcome::Patched
+        );
+        assert_eq!(code, DETECT_PATCH);
+        assert_eq!(
+            patch_bytes(&mut code, &DETECT, &DETECT_PATCH),
+            PatchOutcome::AlreadyPatched
+        );
     }
 
     #[test]
     fn leaves_other_builds_alone() {
         let mut code = [0x48, 0x89, 0x5c];
         assert_eq!(
-            patch_prologue(&mut code),
-            PatchOutcome::Mismatch([0x48, 0x89, 0x5c])
+            patch_bytes(&mut code, &DETECT, &DETECT_PATCH),
+            PatchOutcome::Mismatch(vec![0x48, 0x89, 0x5c])
         );
         assert_eq!(code, [0x48, 0x89, 0x5c]);
     }
 
     #[test]
-    fn patcher_run_patch_is_checked_too() {
-        let mut code = PATCHER_RUN_ORIGINAL;
-        assert_eq!(patch_patcher_run(&mut code), PatchOutcome::Patched);
-        assert_eq!(code, [0xB0, 0x01, 0xC3]);
-        assert_eq!(patch_patcher_run(&mut code), PatchOutcome::AlreadyPatched);
-        let mut other = [0x40, 0x55, 0x53];
-        assert_eq!(
-            patch_patcher_run(&mut other),
-            PatchOutcome::Mismatch([0x40, 0x55, 0x53])
-        );
-        assert_eq!(other, [0x40, 0x55, 0x53]);
+    fn lengths_must_agree() {
+        let mut code = [0x40, 0x55, 0x53, 0x56];
+        assert!(matches!(
+            patch_bytes(&mut code, &DETECT, &DETECT_PATCH),
+            PatchOutcome::Mismatch(_)
+        ));
+        assert_eq!(code, [0x40, 0x55, 0x53, 0x56]);
     }
 
     #[test]
@@ -136,10 +122,5 @@ mod tests {
         )));
         // Substring of another option is not the option.
         assert!(patcher_would_run(&format!("{exe} --success-events 1")));
-    }
-
-    #[test]
-    fn cache_guard_precedes_value() {
-        assert_eq!(CLIENT_PLATFORM_CACHE_VALUE - CLIENT_PLATFORM_CACHE_GUARD, 4);
     }
 }

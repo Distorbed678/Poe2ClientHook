@@ -28,8 +28,6 @@ use poe_hook_shared::{mem::read, module::Module};
 
 use crate::packets::{Channel, Dir, Msg};
 
-const STREAM_READ: usize = 0x142197d30;
-const STREAM_WRITE: usize = 0x142197e60;
 /// Bodies kept per opcode for the analyzer.
 const SAMPLES: usize = 200;
 
@@ -56,13 +54,13 @@ thread_local! {
 static MAIN: std::sync::OnceLock<Module> = std::sync::OnceLock::new();
 
 pub fn init(main: &Module) -> Result<(), String> {
+    let (read, write) = (
+        crate::sigs::addr("stream_read")?,
+        crate::sigs::addr("stream_write")?,
+    );
     MAIN.set(*main).ok();
-    crate::hooks::install(main.from_ghidra(STREAM_READ), HookType::JmpBack(on_read), 0)?;
-    crate::hooks::install(
-        main.from_ghidra(STREAM_WRITE),
-        HookType::JmpBack(on_write),
-        0,
-    )?;
+    crate::hooks::install(read, HookType::JmpBack(on_read), 0)?;
+    crate::hooks::install(write, HookType::JmpBack(on_write), 0)?;
     Ok(())
 }
 
@@ -99,10 +97,10 @@ unsafe extern "win64" fn on_read(regs: *mut Registers, _: usize) {
         let Some(t) = t.as_mut().filter(|t| !t.out && t.stream == stream) else {
             return;
         };
-        if read::<u8>(stream + 0x252) != Some(0) {
+        if read::<u8>(stream + crate::sigs::off().stream_error) != Some(0) {
             return;
         }
-        let offset = read::<usize>(stream + 0x278).unwrap_or(0);
+        let offset = read::<usize>(stream + crate::sigs::off().stream_msg_read).unwrap_or(0);
         t.fields.push(Field {
             offset: offset as u32,
             len: r.r8 as u32,
@@ -120,7 +118,7 @@ unsafe extern "win64" fn on_write(regs: *mut Registers, _: usize) {
         let Some(t) = t.as_mut().filter(|t| t.out && t.stream == stream) else {
             return;
         };
-        let at = read::<usize>(stream + 0x258).unwrap_or(0);
+        let at = read::<usize>(stream + crate::sigs::off().stream_send_len).unwrap_or(0);
         t.fields.push(Field {
             offset: at.wrapping_sub(t.base) as u32,
             len: r.r8 as u32,

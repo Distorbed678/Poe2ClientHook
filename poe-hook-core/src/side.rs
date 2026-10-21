@@ -25,9 +25,6 @@ use poe_hook_shared::{
     trust,
 };
 
-/// Ghidra address of the instance packet-cipher builder `(out, key material, &is_client)`.
-const INSTANCE_CIPHERS: usize = 0x14212aa90;
-
 struct Session {
     keys: SessionKeys,
     /// Counter of the UDP stream (reports and commands).
@@ -41,9 +38,11 @@ struct Session {
 
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
-pub fn init(main: &Module) -> Result<(), String> {
+/// Hooks the instance packet-cipher builder `(out, key material, &is_client)` (signature
+/// `instance_ciphers`).
+pub fn init(_main: &Module) -> Result<(), String> {
     crate::hooks::install(
-        main.from_ghidra(INSTANCE_CIPHERS),
+        crate::sigs::addr("instance_ciphers")?,
         HookType::JmpBack(on_instance_ciphers),
         0,
     )

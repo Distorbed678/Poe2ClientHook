@@ -47,15 +47,18 @@ fn push(e: Event) {
 
 /// Called every simulation frame for the player entity.
 pub fn sample(entity: usize, frame: u32) {
-    let Some(actor) = read::<usize>(entity + 0x10).and_then(|c| read::<usize>(c + 9 * 8)) else {
+    let o = crate::sigs::off();
+    let Some(actor) =
+        read::<usize>(entity + o.entity_components_begin).and_then(|c| read::<usize>(c + 9 * 8))
+    else {
         return;
     };
     let now = poe_hook_shared::unix_ms();
     let mut last = LAST.lock().unwrap();
-    for (slot, off) in [0x238usize, 0x240].into_iter().enumerate() {
+    for (slot, off) in [o.actor_action0, o.actor_action1].into_iter().enumerate() {
         let ptr = read::<usize>(actor + off).unwrap_or(0);
         let kind = if ptr != 0 {
-            read::<u16>(ptr + 0x120).unwrap_or(0)
+            read::<u16>(ptr + o.action_type).unwrap_or(0)
         } else {
             0
         };

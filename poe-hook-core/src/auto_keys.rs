@@ -469,8 +469,9 @@ type GetCursorPosFn = unsafe extern "system" fn(*mut POINT) -> i32;
 /// The game's own main window handle (`*0x1445d8308` points to it; the aim check compares
 /// GetForegroundWindow with it).
 fn game_hwnd() -> Option<usize> {
-    let m = poe_hook_shared::module::Module::main();
-    let p = poe_hook_shared::mem::read::<usize>(m.from_ghidra(0x1445d8308))?;
+    // `game_window_ptr` signature (0.5.5e: 0x1445d8308); without it the caller falls back to
+    // finding the window by class.
+    let p = poe_hook_shared::mem::read::<usize>(crate::sigs::addr("game_window_ptr").ok()?)?;
     poe_hook_shared::mem::read::<usize>(p).filter(|&h| h != 0)
 }
 

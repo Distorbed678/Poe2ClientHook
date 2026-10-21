@@ -8,8 +8,11 @@ proxy, and the host-side library that deploys and launches them.
 |---|---|---|
 | `poe-hook` | `x86_64-pc-windows-msvc` cdylib | `version.dll`: proxy, permanent hooks (network guard, Vulkan, window) and the loader of the core |
 | `poe-hook-core` | `x86_64-pc-windows-msvc` cdylib | `poe_hook_core.dll`: features and the in-game debug overlay; hot-reloadable while the game runs |
-| `poe-hook-shared` | Windows | Config (`poe-hook.toml`), the loader <-> core ABI, guarded memory helpers |
+| `poe-hook-shared` | Windows | Config (`poe-hook.toml`), the loader <-> core ABI, guarded memory helpers, the signature table in a process (`sigs`, `offsets`), packet redaction rules (`redact`) |
+| `poe-hook-sig` | host (pure Rust) | The signature table matcher: patterns, PE reader, scanner, resolver. Used by the DLLs and by the host tools (`cargo xtask check-build`) |
 | `poe-hook-deploy` | host (Linux/Windows) | Gateway list edit, `poe-hook.toml`, `steam_appid.txt`, DLL install/backup/revert, Proton launch, crash-dump moving |
+
+`signatures/<version>.toml` is the **signature table**: every hook address, patch site and game struct offset the DLLs use, as byte patterns with the 0.5.5e values as checks (see below).
 
 `protocol/` is Poe2Protocol as a nested submodule (`poe-hook-core` uses `poe-proto` from it, including the compiled-in
 opcode tables `poe_proto::opcodes::v0_5_5e`).
@@ -26,7 +29,7 @@ git clone --recursive git@github.com:Distorbed678/Poe2ClientHook.git
 
 ## Build and test
 
-Host crates (a plain `cargo` command builds only `poe-hook-deploy`):
+Host crates (a plain `cargo` command builds only `poe-hook-deploy` and `poe-hook-sig`):
 
 ```
 cargo test
@@ -43,6 +46,26 @@ The DLLs, for `x86_64-pc-windows-msvc`:
 
 Output: `target/x86_64-pc-windows-msvc/release/{poe_hook.dll,poe_hook_core.dll}`. `poe_hook.dll` is installed as the game's
 `version.dll`.
+
+## Signature table
+
+The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: `signatures/0.5.5e.toml` (85 signatures, 51
+struct-offset fields) is embedded at build time (`include_str!`, so a table can never be older or newer than the code it
+was made for), selected by the executable's PE timestamp and size (and checked with the build revision string
+`323943`), and resolved **once** when a DLL loads. A signature that matches zero or several times, or whose address holds
+other bytes, switches off the features that list it, with a log line naming it; nothing is hooked or patched on a guess,
+and on an unknown build with the read-only latch on only the observers start. Format, rules and the list of what is
+still literal: `docs/architecture/client-dll.md` in the main repository (section "Signature table").
+
+```
+# resolve the embedded table against an exe file and compare with the 0.5.5e values
+cargo run --release -p poe-hook-sig --example resolve -- /path/to/PathOfExileSteam.exe [table.toml] [--quiet]
+cargo test -p poe-hook-sig        # unit tests; tests/real_exe.rs also runs on ../../GameFiles/PathOfExileSteam.exe (or $POE_EXE) if present
+```
+
+`poe-hook-sig` has no Windows dependencies; other tools can depend on it by path (`poe_hook_sig::resolve_embedded`,
+`poe_hook_sig::{Table, Image, resolve}`). The table is generated from a spec of Ghidra addresses by
+`scripts/re/sig_gen.py` in the main repository.
 
 ## `poe-hook-deploy` API
 
@@ -81,9 +104,11 @@ Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::s
 
 - `login_mode = "standalone" | "steam"` (default `standalone` in private mode; **always `steam` in official mode**, enforced
   by the deploy and again when the DLL reads the file). `standalone` makes the loader (`version.dll`, in `DllMain`) patch
-  the client's `ClientPlatform_Detect` (`40 55 53` -> `31 C0 C3`, Ghidra `0x142196ec0`) so it shows the account-name and
-  password screen and sends `0x0003`. The original bytes are verified first (another build: patch skipped, error logged);
-  an already cached platform value (`0x144717118`, guard `0x144717114`) is reset to 0. Addresses: `poe-hook-shared/src/login.rs`.
+  the client's `ClientPlatform_Detect` (`40 55 53` -> `31 C0 C3`, Ghidra `0x142196ec0` in 0.5.5e) so it shows the account-name and
+  password screen and sends `0x0003`. The function is found by signature and its original bytes are verified first (another
+  build, or a signature that does not match exactly once: patch skipped, error logged); an already cached platform value
+  (`0x144717118`, guard `0x144717114` in 0.5.5e, also by signature) is reset to 0. Table entries: `client_platform_detect`,
+  `standalone_patcher_run`, `platform_cache_guard`, `platform_cache_value`; byte logic: `poe-hook-shared/src/login.rs`.
 - `trusted_servers = ["ip:port", "ip:*", "ip"]` (IPv4 literals; loopback is always trusted; empty in official mode).
   `poe_hook_shared::trust::is_trusted` is the one decision used by the network guard (refuse / latch), `Connection::external`
   (`= !trusted`), the crypto bypass and the overlay's `custom_server()`. A trusted server is neither refused by

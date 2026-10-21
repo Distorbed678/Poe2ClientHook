@@ -1,15 +1,17 @@
 //! Standalone login: patches the client's `ClientPlatform_Detect` to return platform 0, so it
 //! shows `LoginScreen.ui` (account name + password) and sends the `0x0003` credentials
-//! instead of the Steam login. Background, addresses and evidence:
-//! docs/re/standalone-login.md; the addresses and the byte logic live in
+//! instead of the Steam login. Background and evidence: docs/re/standalone-login.md. The
+//! addresses and the bytes come from the signature table (`poe_hook_shared::sigs`, entries
+//! `client_platform_detect`, `standalone_patcher_run`, `platform_cache_*`), the byte logic is
 //! `poe_hook_shared::login`.
 //!
 //! Safety:
 //! - only with `login_mode = "standalone"`, which `Config` forces to `steam` in official mode,
 //!   so official sessions get no patch at all (and `apply` refuses again if the read-only
 //!   latch is already on);
-//! - the three original bytes are verified first; any other content (another client build)
-//!   skips the patch with an error;
+//! - the function is found by a byte signature that must match exactly once, its first bytes
+//!   are verified against the table's expected bytes (at resolution and again right before
+//!   the write); anything else (another client build) skips the patch with an error;
 //! - the page is made writable only for the 3-byte write and restored, and the instruction
 //!   cache is flushed;
 //! - the standalone patcher (see below) is skipped by the launcher's `--success-event`
@@ -24,6 +26,7 @@ use poe_hook_shared::{
     login::{self, PatchOutcome},
     mem,
     module::Module,
+    sigs::{LOADER_FEATURES, Loaded},
 };
 use windows_sys::Win32::System::{
     Diagnostics::Debug::FlushInstructionCache,
@@ -46,7 +49,18 @@ pub fn apply(main: &Module, mode: LoginMode) {
         }
         LoginMode::Standalone => {}
     }
-    match patch(main) {
+    // Resolve before anything is patched: the patched bytes no longer match the patterns.
+    let loaded = match Loaded::resolve(main, Some(LOADER_FEATURES)) {
+        Ok(l) => l,
+        Err(e) => {
+            log::error!(
+                "login_mode standalone: NOT applied, Steam login stays: signature table: {e}"
+            );
+            return;
+        }
+    };
+    loaded.log_summary();
+    match patch(&loaded) {
         Ok(msg) => log::info!("login_mode standalone: {msg}"),
         Err(e) => {
             // Without the platform patch the client is not standalone: no patcher either.
@@ -54,14 +68,14 @@ pub fn apply(main: &Module, mode: LoginMode) {
             return;
         }
     }
-    skip_patcher(main);
+    skip_patcher(&loaded);
 }
 
 /// With platform 0 the client first runs the standalone patcher (window, GGG patch servers).
 /// The launcher passes `--success-event 0`, which the client treats as "the patcher already
 /// ran". If the command line does not (or `--disable-client-switching` undoes it), patch the
 /// patcher's entry so it returns "go on" at once.
-fn skip_patcher(main: &Module) {
+fn skip_patcher(loaded: &Loaded) {
     let cmdline = command_line();
     if !login::patcher_would_run(&cmdline) {
         log::info!(
@@ -70,7 +84,7 @@ fn skip_patcher(main: &Module) {
         );
         return;
     }
-    match patch_patcher(main) {
+    match patch_patcher(loaded) {
         Ok(msg) => log::warn!(
             "standalone patcher skip: {msg} (command line has no {})",
             login::SUCCESS_EVENT_OPTION
@@ -81,25 +95,42 @@ fn skip_patcher(main: &Module) {
     }
 }
 
-fn patch_patcher(main: &Module) -> Result<String, String> {
-    let func = main.from_ghidra(login::STANDALONE_PATCHER_RUN);
-    let mut code: [u8; 3] = mem::read(func).ok_or_else(|| format!("{func:#x} is not readable"))?;
-    let before = code;
-    match login::patch_patcher_run(&mut code) {
+fn patch_patcher(loaded: &Loaded) -> Result<String, String> {
+    const NAME: &str = "standalone_patcher_run";
+    if !loaded.feature_ok("patcher_skip") {
+        return Err(format!(
+            "signatures: {}",
+            loaded.feature_problem("patcher_skip")
+        ));
+    }
+    let func = loaded.addr(NAME)?;
+    let (original, patch) = loaded
+        .patch_bytes(NAME)
+        .ok_or_else(|| format!("table entry {NAME} has no patch bytes"))?;
+    let mut code = read_bytes(func, original.len())?;
+    let before = code.clone();
+    match login::patch_bytes(&mut code, &original, &patch) {
         PatchOutcome::Mismatch(found) => Err(format!(
-            "StandalonePatcher_Run (ghidra {:#x}) starts with {found:02x?}, expected {:02x?}",
-            login::STANDALONE_PATCHER_RUN,
-            login::PATCHER_RUN_ORIGINAL
+            "StandalonePatcher_Run (ghidra {:#x}) starts with {found:02x?}, expected {original:02x?}",
+            loaded.ghidra(func)
         )),
         PatchOutcome::AlreadyPatched => Ok("already patched".into()),
         PatchOutcome::Patched => {
             unsafe { write_code(func, &code)? };
             Ok(format!(
                 "StandalonePatcher_Run (ghidra {:#x}) {before:02x?} -> {code:02x?}",
-                login::STANDALONE_PATCHER_RUN
+                loaded.ghidra(func)
             ))
         }
     }
+}
+
+/// `len` bytes of code at `addr`.
+fn read_bytes(addr: usize, len: usize) -> Result<Vec<u8>, String> {
+    if !mem::readable(addr, len) {
+        return Err(format!("{addr:#x} is not readable"));
+    }
+    Ok(unsafe { std::slice::from_raw_parts(addr as *const u8, len) }.to_vec())
 }
 
 /// The process command line (UTF-16 lossy to UTF-8).
@@ -117,17 +148,26 @@ fn command_line() -> String {
     }
 }
 
-fn patch(main: &Module) -> Result<String, String> {
-    let func = main.from_ghidra(login::CLIENT_PLATFORM_DETECT);
-    let mut code: [u8; 3] = mem::read(func).ok_or_else(|| format!("{func:#x} is not readable"))?;
-    let before = code;
-    match login::patch_prologue(&mut code) {
+fn patch(loaded: &Loaded) -> Result<String, String> {
+    const NAME: &str = "client_platform_detect";
+    if !loaded.feature_ok("login_patch") {
+        return Err(format!(
+            "signatures: {}",
+            loaded.feature_problem("login_patch")
+        ));
+    }
+    let func = loaded.addr(NAME)?;
+    let (original, patch) = loaded
+        .patch_bytes(NAME)
+        .ok_or_else(|| format!("table entry {NAME} has no patch bytes"))?;
+    let mut code = read_bytes(func, original.len())?;
+    let before = code.clone();
+    match login::patch_bytes(&mut code, &original, &patch) {
         PatchOutcome::Mismatch(found) => {
             return Err(format!(
-                "ClientPlatform_Detect (ghidra {:#x}) starts with {found:02x?}, expected {:02x?}: \
+                "ClientPlatform_Detect (ghidra {:#x}) starts with {found:02x?}, expected {original:02x?}: \
                  wrong client build, patch skipped",
-                login::CLIENT_PLATFORM_DETECT,
-                login::PLATFORM_DETECT_ORIGINAL
+                loaded.ghidra(func)
             ));
         }
         PatchOutcome::AlreadyPatched => {}
@@ -135,11 +175,22 @@ fn patch(main: &Module) -> Result<String, String> {
     }
     let mut msg = format!(
         "ClientPlatform_Detect (ghidra {:#x}) {before:02x?} -> {code:02x?}",
-        login::CLIENT_PLATFORM_DETECT
+        loaded.ghidra(func)
     );
     // Something may have cached the Steam value already.
-    let guard = main.from_ghidra(login::CLIENT_PLATFORM_CACHE_GUARD);
-    let value = main.from_ghidra(login::CLIENT_PLATFORM_CACHE_VALUE);
+    if !loaded.feature_ok("login_cache") {
+        log::warn!(
+            "platform cache not checked: {}",
+            loaded.feature_problem("login_cache")
+        );
+        return Ok(msg);
+    }
+    let (Ok(guard), Ok(value)) = (
+        loaded.addr("platform_cache_guard"),
+        loaded.addr("platform_cache_value"),
+    ) else {
+        return Ok(msg);
+    };
     if let Some(g) = mem::read::<i32>(guard) {
         if g != 0 {
             let old = mem::read::<i32>(value);
