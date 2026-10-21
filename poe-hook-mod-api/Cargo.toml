@@ -1,0 +1,9 @@
+[package]
+name = "poe-hook-mod-api"
+description = "The C ABI between the poe-hook loader and mod DLLs (HookApi); no dependencies, so a mod stays tiny"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]

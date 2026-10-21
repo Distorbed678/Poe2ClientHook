@@ -5,12 +5,13 @@
 //! installs the network guard (the client's crash-report helper connects out within
 //! milliseconds of starting) and applies the standalone-login patch ([`login_patch`]). A thread then hooks Vulkan for the overlay and loads the debug
 //! core (`poe_hook_core.dll`), which holds the features and the overlay and can be hot-reloaded
-//! ([`core`]).
+//! ([`core`]). Once the core runs, the enabled mods are loaded ([`mods`]); never in official mode.
 
 mod core;
 mod guard;
 mod login_patch;
 mod logsink;
+mod mods;
 mod proxy;
 mod vulkan;
 mod window;
@@ -67,6 +68,7 @@ pub extern "system" fn DllMain(_module: HINSTANCE, reason: u32, _reserved: *mut 
         // Before the client's first platform query (its entry point runs after every static
         // import, this DLL included, has been initialised).
         login_patch::apply(&main, config.login_mode);
+        let exe_dir = dir.clone();
         std::thread::spawn(move || {
             logsink::flusher();
             if config.overlay.enabled {
@@ -75,7 +77,11 @@ pub extern "system" fn DllMain(_module: HINSTANCE, reason: u32, _reserved: *mut 
                     Err(e) => log::warn!("vulkan hooks: {e}"),
                 }
             }
+            // The mods' signature table must be resolved before the core hooks anything.
+            mods::prepare(&exe_dir, &config);
             core::start(dir, session, config.reload.auto);
+            // Mods last: they get a running loader, core and log. None in official mode.
+            mods::start(&exe_dir, &config);
         });
     }
     1

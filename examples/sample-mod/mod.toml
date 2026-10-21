@@ -1,0 +1,18 @@
+# Sample mod for the poe-hook mod loader (docs/mod-manifest.md). Install it with
+# `cargo xtask deploy-mod modules/client-hook/examples/sample-mod` (or `cargo xtask deploy-client
+# --sample-mod`); never copy files into the game folder by hand.
+manifest_version = 1
+id = "sample-mod"
+name = "Sample mod"
+version = "0.1.0"
+description = "Logs a hello line, the game build and the state of a few signatures through the mod ABI."
+authors = ["Poe2ClientHook"]
+license = "MIT OR Apache-2.0"
+
+[game]
+versions = ["0.5.5e"]
+# The mod ABI this mod was built against (poe_hook_mod_api::HOOK_API_VERSION).
+hook_api = 1
+
+[entry]
+dll = "sample_mod.dll"

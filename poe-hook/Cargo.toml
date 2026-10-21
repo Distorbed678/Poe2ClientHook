@@ -12,6 +12,8 @@ crate-type = ["cdylib"]
 
 [dependencies]
 poe-hook-shared.workspace = true
+poe-hook-mod-api.workspace = true
+poe-hook-mods.workspace = true
 log.workspace = true
 ilhook.workspace = true
 ash.workspace = true

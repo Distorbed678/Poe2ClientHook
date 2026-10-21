@@ -14,7 +14,8 @@
 //!    servers, whatever the options say);
 //! 4. writes `steam_appid.txt`.
 //!
-//! [`deploy_core`] installs only the core, [`revert`] undoes everything,
+//! [`deploy_core`] installs only the core, [`install_mod`] installs a mod (and enables it) under
+//! `poe-hook-mods/`, [`revert`] undoes everything (the mods [`install_mod`] put there too),
 //! [`launch::ProtonLaunch`] starts the client through Proton, and
 //! [`login_token::write_login_token`] signs a launcher account in without typing a password.
 
@@ -23,6 +24,7 @@ pub mod hook_config;
 mod install;
 pub mod launch;
 pub mod login_token;
+pub mod mods;
 mod trusted;
 
 use std::path::{Path, PathBuf};
@@ -33,6 +35,7 @@ pub use gateway::GatewayEntry;
 pub use hook_config::{hook_path, set_hook_key};
 pub use install::{backup_once, backup_path, install_file};
 pub use login_token::{LoginTokenFiles, write_login_token};
+pub use mods::{InstalledMod, install_mod, remove_installed_mods};
 pub use trusted::resolve_trusted_servers;
 
 /// The loader, installed as the client's `version.dll`.
@@ -219,6 +222,7 @@ pub fn revert(game_dir: &Path) -> Result<Vec<PathBuf>> {
         std::fs::rename(&orig, &gateway)?;
         touched.push(gateway);
     }
+    touched.extend(remove_installed_mods(game_dir)?);
     for name in [LOADER_DLL, CORE_DLL, HOOK_CONFIG, STEAM_APPID_FILE] {
         let p = game_dir.join(name);
         if p.exists() {

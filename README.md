@@ -9,6 +9,8 @@ proxy, and the host-side library that deploys and launches them.
 | `poe-hook` | `x86_64-pc-windows-msvc` cdylib | `version.dll`: proxy, permanent hooks (network guard, Vulkan, window) and the loader of the core |
 | `poe-hook-core` | `x86_64-pc-windows-msvc` cdylib | `poe_hook_core.dll`: features and the in-game debug overlay; hot-reloadable while the game runs |
 | `poe-hook-shared` | Windows | Config (`poe-hook.toml`), the loader <-> core ABI, guarded memory helpers, the signature table in a process (`sigs`, `offsets`), packet redaction rules (`redact`) |
+| `poe-hook-mod-api` | host (pure Rust) | The mod ABI (`HookApi`, export names) a mod DLL builds against; no dependencies |
+| `poe-hook-mods` | host (pure Rust) | Mod loader logic: `mod.toml`, `state.toml`, load plan, ABI check, official-mode refusal. The loader itself is `poe-hook/src/mods.rs` |
 | `poe-hook-sig` | host (pure Rust) | The signature table matcher: patterns, PE reader, scanner, resolver. Used by the DLLs and by the host tools (`cargo xtask check-build`) |
 | `poe-hook-deploy` | host (Linux/Windows) | Gateway list edit, `poe-hook.toml`, `steam_appid.txt`, DLL install/backup/revert, Proton launch, crash-dump moving |
 
@@ -17,7 +19,7 @@ proxy, and the host-side library that deploys and launches them.
 `protocol/` is Poe2Protocol as a nested submodule (`poe-hook-core` uses `poe-proto` from it, including the compiled-in
 opcode tables `poe_proto::opcodes::v0_5_5e`).
 
-The mod manifest format (read by the launcher; the DLL loader is planned) is specified in [docs/mod-manifest.md](docs/mod-manifest.md).
+The mod manifest format and the mod ABI (read by the launcher and by the DLL's mod loader, `poe-hook-mods/<id>/` plus `state.toml`; no mod loads in official mode) are specified in [docs/mod-manifest.md](docs/mod-manifest.md); `examples/sample-mod/` is a tiny mod (`cargo xtask deploy-mod` installs it in the main repository).
 Behavior of the DLLs is documented in the main repository (`docs/architecture/client-dll.md`).
 
 ## Clone
@@ -29,7 +31,7 @@ git clone --recursive git@github.com:Distorbed678/Poe2ClientHook.git
 
 ## Build and test
 
-Host crates (a plain `cargo` command builds only `poe-hook-deploy` and `poe-hook-sig`):
+Host crates (a plain `cargo` command builds only `poe-hook-deploy`, `poe-hook-sig`, `poe-hook-mod-api` and `poe-hook-mods`):
 
 ```
 cargo test
@@ -39,12 +41,12 @@ cargo clippy --all-targets
 
 The DLLs, for `x86_64-pc-windows-msvc`:
 
-- On Windows: `cargo build --release -p poe-hook -p poe-hook-core --target x86_64-pc-windows-msvc`
+- On Windows: `cargo build --release -p poe-hook -p poe-hook-core -p poe-hook-sample-mod --target x86_64-pc-windows-msvc`
 - On Linux with [cargo-xwin](https://github.com/rust-cross/cargo-xwin):
-  `cargo xwin build --release -p poe-hook -p poe-hook-core --target x86_64-pc-windows-msvc`
+  `cargo xwin build --release -p poe-hook -p poe-hook-core -p poe-hook-sample-mod --target x86_64-pc-windows-msvc`
   (inside Poe2ModdingProject: `cargo xtask build-dll`).
 
-Output: `target/x86_64-pc-windows-msvc/release/{poe_hook.dll,poe_hook_core.dll}`. `poe_hook.dll` is installed as the game's
+Output: `target/x86_64-pc-windows-msvc/release/{poe_hook.dll,poe_hook_core.dll,sample_mod.dll}`. `poe_hook.dll` is installed as the game's
 `version.dll`.
 
 ## Signature table

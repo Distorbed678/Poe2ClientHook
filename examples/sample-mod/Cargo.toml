@@ -1,0 +1,14 @@
+[package]
+name = "poe-hook-sample-mod"
+description = "Sample mod for the poe-hook mod loader: logs a hello line and the game build through the mod ABI"
+edition.workspace = true
+version = "0.1.0"
+license.workspace = true
+publish.workspace = true
+
+[lib]
+name = "sample_mod"
+crate-type = ["cdylib"]
+
+[dependencies]
+poe-hook-mod-api.workspace = true

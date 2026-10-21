@@ -1,0 +1,16 @@
+[package]
+name = "poe-hook-mods"
+description = "Host-buildable mod loader logic of the PoE2 client hook: mod.toml, state.toml, load plan, ABI check, official-mode refusal"
+edition.workspace = true
+version.workspace = true
+license.workspace = true
+publish.workspace = true
+
+[dependencies]
+poe-hook-mod-api.workspace = true
+semver = "1"
+toml.workspace = true
+serde.workspace = true
+
+[dev-dependencies]
+tempfile = "3"
