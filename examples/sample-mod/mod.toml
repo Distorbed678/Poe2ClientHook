@@ -7,7 +7,7 @@ name = "Sample mod"
 version = "0.1.0"
 description = "Logs a hello line, the game build and the state of a few signatures through the mod ABI."
 authors = ["Poe2ClientHook"]
-license = "MIT OR Apache-2.0"
+license = "MIT"
 
 [game]
 versions = ["0.5.5e"]

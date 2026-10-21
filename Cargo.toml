@@ -28,7 +28,7 @@ default-members = ["poe-hook-deploy", "poe-hook-sig", "poe-hook-mod-api", "poe-h
 [workspace.package]
 edition = "2024"
 version = "0.2.0"
-license = "MIT OR Apache-2.0"
+license = "MIT"
 publish = false
 
 [workspace.dependencies]
