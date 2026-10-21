@@ -1,0 +1,12 @@
+Poe2ClientHook
+Copyright (c) 2026 Distorbed678 and contributors. MIT OR Apache-2.0 (LICENSE-MIT, LICENSE-APACHE).
+
+Third-party material shipped in this repository:
+
+- DejaVu Sans Mono (poe-hook-core/assets/DejaVuSansMono.ttf): Bitstream Vera and DejaVu
+  fonts license, see poe-hook-core/assets/DejaVu-LICENSE.txt. Used by the debug overlay.
+
+Rust dependencies keep their own licenses (see Cargo.lock and each crate's metadata).
+
+No Path of Exile 2 assets, bundles, tables, executables or code are included. "Path of Exile"
+is a trademark of Grinding Gear Games; this project is not affiliated with or endorsed by them.

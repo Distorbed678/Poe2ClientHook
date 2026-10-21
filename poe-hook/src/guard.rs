@@ -36,9 +36,18 @@ pub fn init(main: &Module, official: bool, block_external: bool) -> Result<(), S
     MAIN.set(*main).ok();
     if official {
         READ_ONLY.store(true, Ordering::SeqCst);
-        log::warn!("official mode: read-only latch on");
+        log::warn!(
+            "official mode: read-only latch on (nothing is sent or changed, but the DLL still \
+             patches game code in memory to observe, which can be detected)"
+        );
     }
     BLOCK_EXTERNAL.store(block_external && !official, Ordering::SeqCst);
+    log::info!(
+        "network guard: official={official} block_external={} latch_at_start={} hooks=connect,WSAConnect \
+         (a client that connects some other way is neither blocked nor latched)",
+        BLOCK_EXTERNAL.load(Ordering::SeqCst),
+        READ_ONLY.load(Ordering::SeqCst)
+    );
     let ws2 = unsafe {
         let name: Vec<u16> = "ws2_32.dll\0".encode_utf16().collect();
         let mut h = GetModuleHandleW(name.as_ptr());

@@ -1,6 +1,6 @@
 # Poe2ClientHook
 
-The client side of [Poe2ModdingProject](https://github.com/Distorbed678/Poe2ModdingProject) (private repo; this repo is
+The client side of [Poe2ModdingProject](https://github.com/Distorbed678/Poe2ModdingProject) (this repo is
 its submodule `modules/client-hook`): DLLs injected into **Path of Exile 2 client 0.5.5e** through the `version.dll`
 proxy, and the host-side library that deploys and launches them.
 
@@ -25,7 +25,7 @@ Behavior of the DLLs is documented in the main repository (`docs/architecture/cl
 ## Clone
 
 ```
-git clone --recursive git@github.com:Distorbed678/Poe2ClientHook.git
+git clone --recursive https://github.com/Distorbed678/Poe2ClientHook.git
 # or, after a plain clone:  git submodule update --init --recursive
 ```
 
@@ -121,4 +121,14 @@ Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::s
 Never touch the Steam install or its Proton prefix; deploy only into a copy of the game files. Official servers are
 read-only: in `official` mode the DLL only observes and logs.
 
-License: MIT OR Apache-2.0.
+## Disclaimer
+
+This is an unofficial, fan-made project for personal and educational use. It is **not affiliated with, endorsed by or connected to Grinding Gear Games**; "Path of Exile" is their trademark. **No game files are distributed** in this repository (no assets, bundles, tables or executables): you need your own legal copy of the game. Use is at your own risk.
+
+**The DLL modifies the running game.** It is loaded in place of the game's `version.dll` and patches game code in memory (inline detours, a Vulkan hook, a login patch) and, with the debug core, injects input and sends data to a private server. In `official` mode (and as soon as a connection to an untrusted server is seen) the read-only latch stops everything that sends, alters or injects anything: it observes and logs only. But even then the observers still patch game code in memory, and the game's anti-cheat may detect any injected DLL and treat it as a violation. Do not use this on an account you care about, and do not use it on official servers at all if you can avoid it. Official-server use is not supported and not endorsed by this project; the launcher never enables it. Loading mods means running native code with your user's rights: install only mods you trust.
+
+Security issues: [SECURITY.md](SECURITY.md). Contributing: [CONTRIBUTING.md](https://github.com/Distorbed678/Poe2ModdingProject/blob/main/CONTRIBUTING.md) in the main repository.
+
+## License
+
+MIT OR Apache-2.0, at your option: [LICENSE-MIT](LICENSE-MIT), [LICENSE-APACHE](LICENSE-APACHE). Copyright (c) 2026 Distorbed678 and contributors. `poe-hook-core/assets/` holds the DejaVu Sans Mono font under its own license (`DejaVu-LICENSE.txt` next to it, see also [NOTICE](NOTICE)).

@@ -6,6 +6,21 @@
 
 use std::net::{Ipv4Addr, ToSocketAddrs};
 
+/// Domains of the official game services. A name under one of them is never accepted into
+/// `trusted_servers`: a trusted address switches the read-only latch off for that connection,
+/// and a typo or a pasted official gateway must not turn the client's official session into a
+/// "private" one (docs/architecture/client-dll.md). A safety deny-list, not game data. IP
+/// literals cannot be checked this way: only names are.
+pub const OFFICIAL_DOMAINS: &[&str] = &["pathofexile.com", "pathofexile2.com", "grindinggear.com"];
+
+/// Whether `host` is an official game domain or a subdomain of one.
+pub fn is_official_host(host: &str) -> bool {
+    let host = host.trim_end_matches('.').to_ascii_lowercase();
+    OFFICIAL_DOMAINS
+        .iter()
+        .any(|d| host == *d || host.ends_with(&format!(".{d}")))
+}
+
 /// Resolves host names to IPv4 literals, validates entries and removes duplicates. Returns
 /// the entries to write and a warning for each entry that was dropped.
 pub fn resolve_trusted_servers(entries: &[String]) -> (Vec<String>, Vec<String>) {
@@ -38,6 +53,12 @@ pub(crate) fn resolve_with(
             }
             _ => (entry, None),
         };
+        if is_official_host(host) {
+            warnings.push(format!(
+                "trusted server {entry:?}: an official game host can never be trusted, dropped"
+            ));
+            continue;
+        }
         let ips = match host.parse::<Ipv4Addr>() {
             Ok(ip) => vec![ip],
             Err(_) if is_hostname(host) => resolver(host),
@@ -133,5 +154,26 @@ mod tests {
             toml_array(&s(&["1.2.3.4:5", "6.7.8.9"])),
             r#"["1.2.3.4:5", "6.7.8.9"]"#
         );
+    }
+
+    #[test]
+    fn official_hosts_are_refused_without_a_lookup() {
+        let (out, warn) = resolve_with(
+            &s(&[
+                "gateway.pathofexile.com:20481",
+                "PATHOFEXILE2.com",
+                "login.eu.grindinggear.com.",
+                "notpathofexile.com",
+                "192.168.1.20",
+            ]),
+            |host| {
+                assert_eq!(host, "notpathofexile.com", "official names are never resolved");
+                vec![Ipv4Addr::new(10, 0, 0, 9)]
+            },
+        );
+        assert_eq!(out, s(&["10.0.0.9", "192.168.1.20"]));
+        assert_eq!(warn.len(), 3, "{warn:?}");
+        assert!(warn.iter().all(|w| w.contains("official game host")));
+        assert!(is_official_host("a.b.pathofexile.com") && !is_official_host("example.org"));
     }
 }
