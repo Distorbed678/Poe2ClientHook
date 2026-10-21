@@ -6,6 +6,7 @@ pub mod config;
 pub mod login;
 pub mod mem;
 pub mod module;
+pub mod netguard;
 pub mod offsets;
 pub mod redact;
 pub mod sidechannel;
