@@ -14,7 +14,7 @@ proxy, and the host-side library that deploys and launches them.
 `protocol/` is Poe2Protocol as a nested submodule (`poe-hook-core` uses `poe-proto` from it, including the compiled-in
 opcode tables `poe_proto::opcodes::v0_5_5e`).
 
-The mod manifest format planned for the loader and the launcher is specified in [docs/mod-manifest.md](docs/mod-manifest.md).
+The mod manifest format (read by the launcher; the DLL loader is planned) is specified in [docs/mod-manifest.md](docs/mod-manifest.md).
 Behavior of the DLLs is documented in the main repository (`docs/architecture/client-dll.md`).
 
 ## Clone
@@ -55,7 +55,7 @@ deploy(&DeployOptions {
     game_dir, dll_dir,                 // client folder; build output folder
     mode: Mode::Private,               // or Mode::Official (read-only, original gateway list)
     gateway: Some(GatewayEntry { region, display_name, host, port }),
-    position_sync_port: Some(20482),
+    position_sync_port: Some(6112),
     dump_dir: Some(dumps),             // written to poe-hook.toml as a path the client can read (Z:\... under Wine)
     login_mode: LoginMode::Standalone, // `login_mode`; Mode::Official always writes "steam"
     trusted_servers: vec!["192.168.1.20:20481".into(), "192.168.1.20:6112".into()], // host:port, names resolved to IPv4; Official: empty
@@ -70,9 +70,8 @@ ProtonLaunch { steam_root, proton: "Proton - Experimental".into(), prefix_dir, g
 Launcher auto-login (standalone client): `write_login_token(prefix_or_documents_dir, account, token: [u8; 32])`
 writes the remember-me token file `Documents/My Games/Path of Exile 2/poe2_production_login.credentials` and sets
 `[LOGIN] username=<account>` and `save_login=true` in `poe2_production_Config.ini` there. `write_login_token_with` takes
-`LoginTokenFiles` (credentials/ini file names, section and key names) because the file name is the RE's best reading
-(`<config name>_login.credentials`; `config.json` can override it with `GGG_CREDENTIAL_FILE_NAME`) and was not yet seen on
-disk. The client reads both files itself, so the DLL needs no code: with an empty password box, Login sends the token
+`LoginTokenFiles` (credentials/ini file names, section and key names) because `config.json` can override the file name
+with `GGG_CREDENTIAL_FILE_NAME`; the default `poe2_production_login.credentials` is confirmed on disk. The client reads both files itself, so the DLL needs no code: with an empty password box, Login sends the token
 (`0x0003`, `token_login = 1`). `login_token::parse_token_hex` reads 64 hex digits.
 
 Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::select_gateway_in_prefix`, `launch::quarantine_crash_dumps`,
