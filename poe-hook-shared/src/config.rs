@@ -101,6 +101,10 @@ pub struct FeatureConfig {
     /// Log the player's position every simulation frame (movement research; also enabled by
     /// the `POE_HOOK_MOVEMENT_LOG` environment variable).
     pub movement_log: bool,
+    /// Log every path the client plans for the local player (`PATHPLAN` lines: goal, start, the
+    /// pathfinder's parameters and its waypoints), to check a port of its pathfinder; also
+    /// enabled by `POE_HOOK_PATH_LOG`. Read-only.
+    pub path_log: bool,
     /// Report the player's position and action to the local instance server every frame
     /// (the server's drift checker and debug link use them, see position_sync.rs). Never in read-only mode.
     pub position_sync: bool,
@@ -132,6 +136,7 @@ impl Default for FeatureConfig {
             dump_object_types: true,
             entity_trace: false,
             movement_log: false,
+            path_log: false,
             position_sync: true,
             position_sync_port: 0,
             auto_keys: Vec::new(),

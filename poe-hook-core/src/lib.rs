@@ -27,6 +27,7 @@ mod net_trace;
 mod notes;
 mod overlay;
 mod packets;
+mod path_log;
 mod position_sync;
 mod protocol;
 mod scanner;
@@ -190,6 +191,13 @@ fn start_features(config: &Config, main: &Module) {
     dump_types::MOVEMENT_LOG.store(
         f.movement_log || std::env::var_os("POE_HOOK_MOVEMENT_LOG").is_some(),
         Ordering::Relaxed,
+    );
+    report_sig(
+        "path_log",
+        f.path_log || std::env::var_os("POE_HOOK_PATH_LOG").is_some(),
+        "path_log",
+        read_only,
+        || path_log::init(main),
     );
     report("crash_log", f.crash_log, || crash::init(main));
     report("exit_trace", f.crash_log, || exit_trace::init(main));

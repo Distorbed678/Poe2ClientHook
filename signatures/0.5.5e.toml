@@ -170,6 +170,14 @@ pdata = true
 ghidra = 0x141e71120
 
 [[sig]]
+name = "path_plan"
+features = ["path_log"]
+pattern = "48 8b c4 44 88 48 20 4c 89 40 18 48 89 50 10 48 89 48 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8d a8 18 fa ff ff"
+pdata = true
+ghidra = 0x141ed0390
+note = "grid pathfinder (JPS-style search, A* fallback): (goal*, entity, params*, ..., out path*, out count*, ...); hooked by path_log to log the player's plans"
+
+[[sig]]
 name = "entity_destroy"
 features = ["dump_object_types"]
 pattern = "48 89 5c 24 10 48 89 6c 24 18 56 57 41 56 48 81 ec ?? ?? ?? ?? 0f b6 ea"
