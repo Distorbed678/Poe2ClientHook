@@ -45,7 +45,7 @@ static HOOKED_READERS: Mutex<Option<HashSet<usize>>> = Mutex::new(None);
 
 static OUT: OnceLock<PathBuf> = OnceLock::new();
 static DONE: AtomicBool = AtomicBool::new(false);
-/// Last entity created with id 1 (our player) and how often the per-frame entity update
+/// Last entity created with the player's id (`player_id()`) and how often the per-frame entity update
 /// (`ENTITY_UPDATE`) ran for it.
 static PLAYER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 static PLAYER_UPDATES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
@@ -206,7 +206,7 @@ unsafe extern "win64" fn on_entity_tick(regs: *mut Registers, _: usize) {
     let _guard = crate::hook_guard!("dump_types::on_entity_tick");
     let entity = (unsafe { (*regs).rcx } as usize).wrapping_sub(0x58);
     // After a core reload the player was created before this core: adopt it from its tick
-    // (our server gives the player id 1).
+    // (its id is the one in the server's PlayerEntity message, see `set_player_id`).
     if PLAYER.load(Ordering::Relaxed) == 0
         && entity > 0x10000
         && poe_hook_shared::mem::read::<u32>(entity + 0x88) == Some(player_id())
@@ -272,8 +272,6 @@ unsafe extern "win64" fn on_load_area(regs: *mut Registers, original: usize, at:
     ret
 }
 
-/// Writes `terrain_layout_<tile hash>.tsv` to `<dump_dir>/terrain/layouts/` (else next to the exe): a `size<TAB>w<TAB>h` line, then one
-/// `x<TAB>y<TAB>tile path` line per tile. Dev bridge until the server generates terrain (M5).
 /// The game world of the current area (frame-mode world seen by the frame drain).
 static GAME_WORLD: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
@@ -305,6 +303,10 @@ pub fn export_layout_now() -> bool {
     true
 }
 
+/// Writes `terrain_layout_<tile hash>.tsv` to `<dump_dir>/terrain/layouts/` (else next to the
+/// exe): a `size<TAB>w<TAB>h` line, then one `x<TAB>y<TAB>tile path` line per tile. Our server
+/// reads it for spawn placement (a trusted remote server gets it by upload instead), because
+/// its own generator does not cover every area yet.
 pub(crate) unsafe fn export_layout(world: usize) {
     use poe_hook_shared::mem::{read, wide_string};
     // The terrain object is a member (or pointed-to member) of the world; find it by its
@@ -1003,7 +1005,7 @@ pub fn main_module() -> Option<Module> {
 }
 
 /// The controlled character's entity id: from the server's PlayerEntity message (packet
-/// capture); 1 until known (our server's player id).
+/// capture); 1 (a placeholder) until the first PlayerEntity message.
 static PLAYER_ID: std::sync::atomic::AtomicU32 = std::sync::atomic::AtomicU32::new(1);
 
 pub fn player_id() -> u32 {

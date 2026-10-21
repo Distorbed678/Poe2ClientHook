@@ -1,6 +1,6 @@
 //! Coverage tab: every opcode seen, per channel and direction, with counts on official and on
 //! our servers (all sessions, `logs/poe-hook/coverage.tsv`) and this session. "Official only"
-//! lists what official servers send that ours never did: the to-do list of later milestones.
+//! lists what official servers send that ours never did: the to-do list for what the server still has to implement.
 
 use imgui::Ui;
 

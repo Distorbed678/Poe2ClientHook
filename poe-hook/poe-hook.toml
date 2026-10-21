@@ -58,7 +58,7 @@ entity_trace = false
 # POE_HOOK_MOVEMENT_LOG environment variable).
 movement_log = false
 # Report the player's position and action to the local instance server every frame (UDP to
-# the instance port; dev bridge for movement until M5). Never while read-only.
+# the instance port; the server's drift checker and debug link use them). Never while read-only.
 position_sync = true
 # Test input timeline [[ms, vk], ...]; tests use POE_HOOK_AUTO_KEYS instead.
 auto_keys = []

@@ -1,10 +1,11 @@
-//! Dev bridge for movement (until the server simulates movement exactly, M5): reports the
-//! player's position and current action to the instance server every simulation frame.
+//! Position reports: sends the player's position and current action to the instance server
+//! every simulation frame.
 //!
-//! The client runs in lockstep, but the server's pathfinding and collision only approximate
-//! the client's, so the two can drift apart near walls and the client snaps back when the
-//! server next sends a position. With these reports the server knows where the client really
-//! is and sends that, so nothing snaps.
+//! The server's movement simulation is authoritative and never reads these reports into the
+//! simulation. The client runs in lockstep, but the server's pathfinding and collision only
+//! approximate the client's, so the two can drift apart near walls and the client snaps back
+//! when the server next sends a position. The server compares the reports with its own position
+//! (its drift checker, `[dev] drift_check`) to measure that drift.
 //!
 //! Transport: one UDP datagram per frame to the game's connection to the instance server
 //! (`position_sync_port`; the server listens for UDP on the same port). Only trusted servers

@@ -2,7 +2,7 @@
 //! player and its facing, and the server's idea of the player (our server). Which grid is
 //! walkability is not settled: the player was seen standing on grid 0 = 0 with grids 1-3 = 5. "Export" writes the area's
 //! layout and grids (`terrain_layout_*.tsv`, `terrain_grid_*.bin`) for validating our terrain
-//! generator (M5), also on official servers.
+//! generator (`poe-world`), also on official servers.
 
 use imgui::Ui;
 

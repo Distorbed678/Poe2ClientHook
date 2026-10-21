@@ -102,7 +102,7 @@ pub struct FeatureConfig {
     /// the `POE_HOOK_MOVEMENT_LOG` environment variable).
     pub movement_log: bool,
     /// Report the player's position and action to the local instance server every frame
-    /// (movement dev bridge until M5, see position_sync.rs). Never in read-only mode.
+    /// (the server's drift checker and debug link use them, see position_sync.rs). Never in read-only mode.
     pub position_sync: bool,
     /// The instance server's port: only connections to it become the report target (0: the
     /// last loopback connection). Set by `cargo xtask deploy-client` from `server.toml`.
@@ -111,7 +111,7 @@ pub struct FeatureConfig {
     /// (e.g. 0x0D Enter to log in and play). Also `POE_HOOK_AUTO_KEYS="20000:13,..."`.
     /// Never in read-only mode.
     pub auto_keys: Vec<(u64, u16)>,
-    /// Terrain research (M5): export each generated area (layout, grids, generator objects,
+    /// Terrain research (for the server's generator): export each generated area (layout, grids, generator objects,
     /// walkability probe) to `<session>/areas/`. Read-only, so also on official servers.
     pub area_export: bool,
     /// Log every terrain RNG draw and generator phase (`generator_trace.tsv` in the area

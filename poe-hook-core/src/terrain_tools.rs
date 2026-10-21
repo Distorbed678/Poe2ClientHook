@@ -1,4 +1,4 @@
-//! Terrain research tools for the server-side generator (M5). Everything here only reads game
+//! Terrain research tools for the server-side generator (`poe-world`). Everything here only reads game
 //! memory, so it also runs on official servers (read-only).
 //!
 //! - **Area export** (`[features] area_export`): when the client's generator driver
