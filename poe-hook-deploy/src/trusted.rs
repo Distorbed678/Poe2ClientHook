@@ -167,7 +167,10 @@ mod tests {
                 "192.168.1.20",
             ]),
             |host| {
-                assert_eq!(host, "notpathofexile.com", "official names are never resolved");
+                assert_eq!(
+                    host, "notpathofexile.com",
+                    "official names are never resolved"
+                );
                 vec![Ipv4Addr::new(10, 0, 0, 9)]
             },
         );
