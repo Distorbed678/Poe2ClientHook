@@ -101,6 +101,19 @@ pub fn is_trusted_v4(ip: [u8; 4], port: u16) -> bool {
     is_trusted(&SocketAddr::new(IpAddr::V4(Ipv4Addr::from(ip)), port))
 }
 
+/// [`side_channel_allowed`] for an explicit list.
+pub fn side_channel_allowed_in(list: &[TrustedServer], read_only: bool, addr: &SocketAddr) -> bool {
+    !read_only && is_trusted_in(list, addr)
+}
+
+/// Whether the DLL may send anything to `addr` over the side channel (position reports, debug
+/// link commands, terrain upload; `sidechannel.rs`): never while the read-only latch is on
+/// (official servers) and only to loopback or a `trusted_servers` entry. Every outgoing
+/// side-channel send passes this gate.
+pub fn side_channel_allowed(read_only: bool, addr: &SocketAddr) -> bool {
+    !read_only && is_trusted(addr)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -184,5 +197,22 @@ mod tests {
         assert!(!is_trusted_v4([192, 168, 1, 20], 20482));
         set_trusted_servers(&[]);
         assert!(!is_trusted_v4([192, 168, 1, 20], 20481));
+    }
+
+    #[test]
+    fn side_channel_never_goes_to_official_or_read_only() {
+        let l = list(&["192.168.1.20:6112"]);
+        // An official server (untrusted address) gets nothing, latched or not.
+        for ro in [false, true] {
+            assert!(!side_channel_allowed_in(&l, ro, &sa("203.0.113.9:6112")));
+            assert!(!side_channel_allowed_in(&[], ro, &sa("192.168.1.20:6112")));
+        }
+        // Read-only (the latch) blocks even a trusted or loopback address.
+        assert!(!side_channel_allowed_in(&l, true, &sa("192.168.1.20:6112")));
+        assert!(!side_channel_allowed_in(&l, true, &sa("127.0.0.1:6112")));
+        // Trusted and loopback, latch off: allowed.
+        assert!(side_channel_allowed_in(&l, false, &sa("192.168.1.20:6112")));
+        assert!(side_channel_allowed_in(&l, false, &sa("127.0.0.1:6112")));
+        assert!(!side_channel_allowed_in(&l, false, &sa("192.168.1.20:443")));
     }
 }

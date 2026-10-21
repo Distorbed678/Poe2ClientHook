@@ -6,6 +6,7 @@ pub mod config;
 pub mod login;
 pub mod mem;
 pub mod module;
+pub mod sidechannel;
 pub mod trust;
 pub mod window;
 

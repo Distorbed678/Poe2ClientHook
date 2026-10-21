@@ -30,6 +30,7 @@ mod packets;
 mod position_sync;
 mod protocol;
 mod scanner;
+mod side;
 mod snapshot;
 mod symbols;
 mod terrain_tools;
@@ -156,6 +157,9 @@ fn start_features(config: &Config, main: &Module) {
     report("crypto_bypass", f.crypto_bypass && !read_only, || {
         crypto_bypass::init(main)
     });
+    // The authenticated side channel (position reports, debug link, terrain upload) needs the
+    // instance session keys; never captured on official servers.
+    report("side_channel", !read_only, || side::init(main));
     report("net_trace", f.net_trace, || {
         net_trace::init(
             main,

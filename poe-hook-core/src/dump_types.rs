@@ -386,7 +386,12 @@ pub(crate) unsafe fn export_layout(world: usize) {
             out += &format!("{x}\t{y}\t{path}\t{sub}\n");
         }
     }
-    unsafe { export_grids(terrain, w as usize, h as usize, tile_hash) };
+    let grid = unsafe { export_grids(terrain, w as usize, h as usize, tile_hash) };
+    // A trusted remote server cannot read our disk: send it the layout and grid
+    // (`side::upload_terrain` refuses official servers and read-only sessions).
+    if let (Some(grid), Some(dest)) = (grid, crate::position_sync::server_addr()) {
+        crate::side::upload_terrain(dest, tile_hash, out.clone().into_bytes(), grid);
+    }
     let path = crate::dump_path(
         "terrain/layouts",
         &format!("terrain_layout_{tile_hash}.tsv"),
@@ -401,19 +406,18 @@ pub(crate) unsafe fn export_layout(world: usize) {
 /// per cell, `ceil(cells_x / 2)` bytes per row, rows = cells_y). Written as
 /// `terrain_grid_<tile hash>.bin`: `b"PWG1"`, u32 cells_x, u32 cells_y, u32 bytes_per_row,
 /// u32 layer count, then each layer's bytes.
-unsafe fn export_grids(terrain: usize, w: usize, h: usize, tile_hash: u32) {
-    let Some(out) = grid_bytes(terrain, w, h) else {
-        return;
-    };
+unsafe fn export_grids(terrain: usize, w: usize, h: usize, tile_hash: u32) -> Option<Vec<u8>> {
+    let out = grid_bytes(terrain, w, h)?;
     let (cells_x, cells_y) = (w * 23, h * 23);
     let path = crate::dump_path("terrain/grids", &format!("terrain_grid_{tile_hash}.bin"));
-    match std::fs::write(&path, out) {
+    match std::fs::write(&path, &out) {
         Ok(()) => log::info!(
             "exported {cells_x}x{cells_y} cell grids to {}",
             path.display()
         ),
         Err(e) => log::error!("grid export: {e}"),
     }
+    Some(out)
 }
 
 /// The four cell grids in the `PWG1` format (see [`export_grids`]).

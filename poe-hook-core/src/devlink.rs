@@ -1,11 +1,13 @@
 //! Debug link with our instance server (private mode only; never while read-only).
 //!
-//! The server sends `PDB1` datagrams (`key\tvalue` lines: its simulation state, every second
-//! tick, and `ack` lines for commands) to the UDP socket the position reports come from;
-//! commands go back as `PDC1`, `u16 our TCP port of the session`, text: a server command
-//! line (the server's registry, which it sends as `cmds` datagrams; `registry` asks for it
-//! again). `instances` datagrams carry the server's instance list for the Instances tab.
-//! Each state is paired with the client's own position at that moment for the Desync tab.
+//! The server sends sealed `Kind::Debug` frames (`key\tvalue` lines: its simulation state,
+//! every second tick, and `ack` lines for commands) to the UDP socket the position reports come
+//! from; commands go back as sealed `Kind::Command` frames carrying a server command line (the
+//! server's registry, which it sends as `cmds` datagrams; `registry` asks for it again).
+//! `instances` datagrams carry the server's instance list for the Instances tab. Frames are
+//! authenticated per session (`crate::side`, docs/protocol/side-channel.md); anything that
+//! does not verify is dropped. Each state is paired with the client's own position at that
+//! moment for the Desync tab.
 
 use std::{
     collections::{HashMap, VecDeque},
@@ -45,7 +47,7 @@ fn receiver() {
     let mut timeout_set: Option<SOCKET> = None;
     let mut buf = [0u8; 4096];
     while crate::hooks::running() {
-        let Some((sock, _, _)) = crate::position_sync::link() else {
+        let Some((sock, ..)) = crate::position_sync::link() else {
             crate::hooks::sleep(Duration::from_millis(250));
             continue;
         };
@@ -74,10 +76,13 @@ fn receiver() {
                 &mut len,
             )
         };
-        if n <= 4 || &buf[..4] != b"PDB1" {
+        if n <= 0 {
             continue;
         }
-        let text = String::from_utf8_lossy(&buf[4..n as usize]).into_owned();
+        let Some(payload) = crate::side::open_debug(&buf[..n as usize]) else {
+            continue;
+        };
+        let text = String::from_utf8_lossy(&payload).into_owned();
         handle(&text);
     }
 }
@@ -308,12 +313,17 @@ pub fn command(text: &str) -> bool {
     if crate::host::read_only() {
         return false;
     }
-    let Some((sock, dest, port)) = crate::position_sync::link() else {
+    let Some((sock, dest, ip, port)) = crate::position_sync::link() else {
         return false;
     };
-    let mut msg = b"PDC1".to_vec();
-    msg.extend_from_slice(&port.to_le_bytes());
-    msg.extend_from_slice(text.as_bytes());
+    if !crate::side::allowed(ip, port) {
+        return false;
+    }
+    let Some(msg) =
+        crate::side::seal_udp(poe_hook_shared::sidechannel::Kind::Command, text.as_bytes())
+    else {
+        return false;
+    };
     log::info!("dev command: {text}");
     unsafe {
         sendto(

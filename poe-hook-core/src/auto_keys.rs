@@ -13,6 +13,7 @@
 //! pauses, so input can overlap (e.g. Escape while W is held). `text:<chars>` posts one
 //! `WM_CHAR` per character (typing a character name). `inpress:x,y` / `inrelease:x,y` hold and
 //! release the left button there (held click-to-move).
+//! `cmd:<server command>` sends that command line over the debug link (private mode only).
 //! Nothing is sent to other windows and the real cursor never moves.
 //! The file is deleted once processed, so a test
 //! driver can send input at any time.
@@ -80,7 +81,7 @@ pub fn init(keys: Vec<(u64, u16)>) -> Result<(), String> {
                 .lines()
                 .flat_map(|line| {
                     let line = line.trim();
-                    if line.starts_with("text:") {
+                    if line.starts_with("text:") || line.starts_with("cmd:") {
                         vec![line]
                     } else {
                         line.split_whitespace().collect()
@@ -130,6 +131,13 @@ pub fn init(keys: Vec<(u64, u16)>) -> Result<(), String> {
                         _ => log::warn!("poe-hook.keys: bad entry {entry:?}"),
                     }
                     std::thread::sleep(Duration::from_millis(100));
+                    continue;
+                }
+                // A server command over the authenticated debug link (what the overlay does;
+                // `scripts/re/send_dev.py`).
+                if let Some(cmd) = entry.strip_prefix("cmd:") {
+                    let sent = crate::devlink::command(cmd.trim());
+                    log::info!("poe-hook.keys: server command {cmd:?} sent: {sent}");
                     continue;
                 }
                 // Text for an input box (character name): one WM_CHAR per character.

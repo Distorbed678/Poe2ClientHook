@@ -6,16 +6,15 @@
 //! server next sends a position. With these reports the server knows where the client really
 //! is and sends that, so nothing snaps.
 //!
-//! Transport: one UDP datagram per frame to the game's loopback connection to the instance
-//! server (`position_sync_port`; the server listens for UDP on the same port), so it only ever
-//! goes to a local server. Without a configured port, the last loopback connection is used,
-//! which breaks when the game later connects to another local service.
+//! Transport: one UDP datagram per frame to the game's connection to the instance server
+//! (`position_sync_port`; the server listens for UDP on the same port). Only trusted servers
+//! (loopback or `trusted_servers`) and never while read-only: [`crate::side::allowed`] gates
+//! every send. Without a configured port, the last trusted connection is used, which breaks
+//! when the game later connects to another service.
 //!
-//! Payload (little-endian, 32 bytes): `b"PSY2", u16 our TCP port of that connection,
-//! u16 flags, u32 frame counter, f32 grid x, f32 grid y, u16 current action type,
-//! u16 second action type`, then the cursor: `i16 x, i16 y` in the game window's client area
-//! and `u16 width, u16 height` of it (zero when unknown); the server turns the player toward
-//! the cursor from it.
+//! The datagram is a sealed side-channel frame (`Kind::Report`, session id, counter, HMAC tag;
+//! `poe_hook_shared::sidechannel`, docs/protocol/side-channel.md). Without a session (the
+//! instance connection has not delivered its key material yet) nothing is sent.
 
 use std::sync::{
     Mutex,
@@ -23,20 +22,19 @@ use std::sync::{
 };
 
 use windows_sys::Win32::Networking::WinSock::{
-    AF_INET, INVALID_SOCKET, IPPROTO_UDP, SOCK_DGRAM, SOCKADDR, SOCKADDR_IN, SOCKET, getsockname,
-    sendto, socket,
+    AF_INET, INVALID_SOCKET, IPPROTO_UDP, SOCK_DGRAM, SOCKADDR, SOCKADDR_IN, SOCKET, sendto, socket,
 };
 
 pub static ENABLED: AtomicBool = AtomicBool::new(false);
 /// The instance server's port (0: any loopback connection).
 pub static PORT: AtomicU16 = AtomicU16::new(0);
 
-/// The report target: the newest loopback connection to [`PORT`] (from the loader's connection
-/// table): socket, destination and our local port (0 until known).
-static TARGET: Mutex<Option<(u64, SOCKADDR_IN, u16)>> = Mutex::new(None);
+/// The report target: the newest trusted connection to [`PORT`] (from the loader's connection
+/// table): socket, destination and its address (ip, port).
+static TARGET: Mutex<Option<(u64, SOCKADDR_IN, [u8; 4], u16)>> = Mutex::new(None);
 static SOCK: AtomicUsize = AtomicUsize::new(INVALID_SOCKET);
 
-fn target() -> Option<(SOCKADDR_IN, u16)> {
+fn target() -> Option<(SOCKADDR_IN, [u8; 4], u16)> {
     let wanted = PORT.load(Ordering::Relaxed);
     let newest = crate::host::connections()
         .into_iter()
@@ -49,29 +47,24 @@ fn target() -> Option<(SOCKADDR_IN, u16)> {
         dest.sin_port = newest.port.to_be();
         dest.sin_addr.S_un.S_addr = u32::from_ne_bytes(newest.ip);
         log::info!(
-            "position sync: target port {} (socket {:#x})",
+            "position sync: target {}.{}.{}.{}:{} (socket {:#x})",
+            newest.ip[0],
+            newest.ip[1],
+            newest.ip[2],
+            newest.ip[3],
             newest.port,
             newest.socket
         );
-        *target = Some((newest.socket, dest, 0));
+        *target = Some((newest.socket, dest, newest.ip, newest.port));
     }
-    let (sock, dest, port) = target.as_mut()?;
-    // The game connects non-blocking: under Wine the local port can still be 0 right after the
-    // connect, so it is looked up until it is known.
-    if *port == 0 {
-        *port = local_port(*sock as SOCKET);
-        if *port != 0 {
-            log::info!("position sync: local port {port}");
-        }
-    }
-    (*port != 0).then_some((*dest, *port))
+    let (_, dest, ip, port) = target.as_ref()?;
+    Some((*dest, *ip, *port))
 }
 
-fn local_port(sock: SOCKET) -> u16 {
-    let mut local: SOCKADDR_IN = unsafe { std::mem::zeroed() };
-    let mut len = size_of::<SOCKADDR_IN>() as i32;
-    let ok = unsafe { getsockname(sock, &mut local as *mut _ as *mut SOCKADDR, &mut len) } == 0;
-    if ok { u16::from_be(local.sin_port) } else { 0 }
+/// The instance server's address (ip, port) the side channel talks to, if trusted.
+pub fn server_addr() -> Option<([u8; 4], u16)> {
+    let (_, ip, port) = target()?;
+    crate::side::allowed(ip, port).then_some((ip, port))
 }
 
 /// One report for the player entity (from the per-frame entity tick).
@@ -83,9 +76,12 @@ pub fn report(entity: usize, frame: u32) {
     if crate::host::read_only() {
         return;
     }
-    let Some((dest, local_port)) = target() else {
+    let Some((dest, ip, port)) = target() else {
         return;
     };
+    if !crate::side::allowed(ip, port) {
+        return;
+    }
     use poe_hook_shared::mem::read;
     let Some(comps) = read::<usize>(entity + 0x10) else {
         return;
@@ -104,20 +100,22 @@ pub fn report(entity: usize, frame: u32) {
     };
     // Actor +0x2a2 bit 5: sprint key held (set by the server's 0x2e7).
     let flags = read::<u8>(actor + 0x2a2).unwrap_or(0) as u16;
-    let mut msg = Vec::with_capacity(32);
-    msg.extend_from_slice(b"PSY2");
-    msg.extend_from_slice(&local_port.to_le_bytes());
-    msg.extend_from_slice(&flags.to_le_bytes());
-    msg.extend_from_slice(&frame.to_le_bytes());
-    msg.extend_from_slice(&x.to_le_bytes());
-    msg.extend_from_slice(&y.to_le_bytes());
-    msg.extend_from_slice(&action(0x238).to_le_bytes());
-    msg.extend_from_slice(&action(0x240).to_le_bytes());
     let (cx, cy, w, h) = cursor().unwrap_or_default();
-    msg.extend_from_slice(&cx.to_le_bytes());
-    msg.extend_from_slice(&cy.to_le_bytes());
-    msg.extend_from_slice(&w.to_le_bytes());
-    msg.extend_from_slice(&h.to_le_bytes());
+    let payload = poe_hook_shared::sidechannel::ReportPayload {
+        flags,
+        frame,
+        x,
+        y,
+        action: action(0x238),
+        action2: action(0x240),
+        cursor: (cx, cy),
+        window: (w, h),
+    }
+    .encode();
+    let Some(msg) = crate::side::seal_udp(poe_hook_shared::sidechannel::Kind::Report, &payload)
+    else {
+        return;
+    };
     let mut s = SOCK.load(Ordering::Relaxed);
     if s == INVALID_SOCKET {
         s = unsafe { socket(AF_INET as i32, SOCK_DGRAM, IPPROTO_UDP) };
@@ -177,14 +175,14 @@ pub fn stop() {
     }
 }
 
-/// The report socket and target (instance server address, our TCP port of the session), for
-/// the debug link ([`crate::devlink`]).
-pub fn link() -> Option<(SOCKET, SOCKADDR_IN, u16)> {
+/// The report socket and target (instance server address, ip and port), for the debug link
+/// ([`crate::devlink`]).
+pub fn link() -> Option<(SOCKET, SOCKADDR_IN, [u8; 4], u16)> {
     let s = SOCK.load(Ordering::Relaxed);
     if s == INVALID_SOCKET {
         return None;
     }
     let target = TARGET.lock().unwrap();
-    let (_, dest, port) = target.as_ref()?;
-    (*port != 0).then_some((s, *dest, *port))
+    let (_, dest, ip, port) = target.as_ref()?;
+    Some((s, *dest, *ip, *port))
 }
