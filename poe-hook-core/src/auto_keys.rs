@@ -1,7 +1,7 @@
 //! Unattended tests: posts configured key presses to the game window on a timeline (relative
 //! to DLL load), so a test run can log in and enter the game without anyone at the keyboard.
 //!
-//! Afterwards it polls `poe-hook.keys` next to the exe: each whitespace-separated entry is a
+//! Afterwards it polls `poe-hook.keys` next to the exe (or the file named by `POE_HOOK_KEYS_FILE`): each whitespace-separated entry is a
 //! virtual key, optionally with a hold time in ms (`0x0d`, `87`, `0x57:800`), or a left click
 //! at client coordinates (`click:1280,720`), or `close` (WM_CLOSE, like the window's X button).
 //! Posted key messages reach the UI, but the game reads movement and skill keys through Raw
@@ -49,10 +49,22 @@ use windows_sys::Win32::{
     },
 };
 
+/// The input file this process polls: `poe-hook.keys` next to the exe, or `POE_HOOK_KEYS_FILE`
+/// (a file name next to the exe, or an absolute path) so several clients running the same exe
+/// (`scripts/test-mp.sh`) each get their own.
+fn keys_file() -> std::path::PathBuf {
+    let dir = poe_hook_shared::exe_dir();
+    match std::env::var("POE_HOOK_KEYS_FILE") {
+        Ok(name) if !name.trim().is_empty() => dir.join(name.trim()),
+        _ => dir.join("poe-hook.keys"),
+    }
+}
+
 pub fn init(keys: Vec<(u64, u16)>) -> Result<(), String> {
     hook_input()?;
     let start = Instant::now();
-    let file = poe_hook_shared::exe_dir().join("poe-hook.keys");
+    let file = keys_file();
+    log::info!("input file: {}", file.display());
     crate::hooks::spawn(move || {
         for (at_ms, vk) in keys {
             let at = Duration::from_millis(at_ms);
