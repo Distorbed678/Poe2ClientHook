@@ -10,7 +10,7 @@ proxy, and the host-side library that deploys and launches them.
 | `poe-hook-core` | `x86_64-pc-windows-msvc` cdylib | `poe_hook_core.dll`: features and the in-game debug overlay; hot-reloadable while the game runs |
 | `poe-hook-shared` | Windows | Config (`poe-hook.toml`), the loader <-> core ABI, guarded memory helpers, the signature table in a process (`sigs`, `offsets`), packet redaction rules (`redact`) |
 | `poe-hook-mod-api` | host (pure Rust) | The mod ABI (`HookApi`, export names) a mod DLL builds against; no dependencies |
-| `poe-hook-mods` | host (pure Rust) | Mod loader logic: `mod.toml`, `state.toml`, load plan, ABI check, official-mode refusal. The loader itself is `poe-hook/src/mods.rs` |
+| `poe-hook-mods` | host (pure Rust) | The shared mod logic: `mod.toml` (manifest v1 and v2: `side` client/server/both, `[client]`, `[server]`, `[[commands]]`), `state.toml`, load plan, ABI checks, official-mode refusal, and package verification (`<id>-<version>.zip` + `.sha256`, feature `package`). The loader itself is `poe-hook/src/mods.rs`; the server mod SDK and the `poe-mod` packer are in [Poe2ModSDK](https://github.com/Distorbed678/Poe2ModSDK) |
 | `poe-hook-sig` | host (pure Rust) | The signature table matcher: patterns, PE reader, scanner, resolver. Used by the DLLs and by the host tools (`cargo xtask check-build`) |
 | `poe-hook-deploy` | host (Linux/Windows) | Gateway list edit, `poe-hook.toml`, `steam_appid.txt`, DLL install/backup/revert, Proton launch, crash-dump moving |
 
