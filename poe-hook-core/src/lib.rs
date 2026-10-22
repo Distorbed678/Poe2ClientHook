@@ -12,12 +12,14 @@ mod areas;
 mod auto_keys;
 mod crash;
 mod crypto_bypass;
+mod cxx_guard;
 mod devlink;
 mod dump_types;
 mod entities;
 mod exit_trace;
 mod gamedata;
 mod gamelog;
+mod gen_batch;
 mod hidden;
 mod hooks;
 mod host;
@@ -255,8 +257,17 @@ fn start_features(config: &Config, main: &Module) {
     let generator_trace = f.generator_trace || std::env::var_os("POE_HOOK_GEN_TRACE").is_some();
     let export = sig_enabled("area_export", f.area_export, read_only);
     let trace = sig_enabled("generator_trace", generator_trace, read_only);
-    report("area_export", export || trace, || {
-        terrain_tools::init(main, export, trace)
+    // In-client batch terrain generation: private mode only, off unless configured.
+    let batch = sig_enabled(
+        "gen_batch",
+        config.gen_batch.enabled && !config.official(),
+        read_only,
+    );
+    report("area_export", export || trace || batch, || {
+        terrain_tools::init(main, export, trace, batch)
+    });
+    report("gen_batch", batch, || {
+        gen_batch::init(&config.gen_batch, read_only)
     });
     report("trace_calls", !addresses.is_empty(), || {
         trace_calls::init(main, &addresses, f.trace_limit.max(200))

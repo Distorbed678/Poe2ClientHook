@@ -55,7 +55,7 @@ Tag `hook-v<version>` and the [Release hook](.github/workflows/release.yml) work
 
 ## Signature table
 
-The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: `signatures/0.5.5e.toml` (85 signatures, 51
+The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: `signatures/0.5.5e.toml` (100 signatures, 64
 struct-offset fields) is embedded at build time (`include_str!`, so a table can never be older or newer than the code it
 was made for), selected by the executable's PE timestamp and size (and checked with the build revision string
 `323943`), and resolved **once** when a DLL loads. A signature that matches zero or several times, or whose address holds
@@ -119,6 +119,10 @@ Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::s
   `poe_hook_shared::trust::is_trusted` is the one decision used by the network guard (refuse / latch), `Connection::external`
   (`= !trusted`), the crypto bypass and the overlay's `custom_server()`. A trusted server is neither refused by
   `block_external` nor latches read-only and gets the crypto bypass; every other remote stays read-only exactly as before.
+
+## Batch terrain generation (`gen_batch`)
+
+`[gen_batch]` (off by default, never in official mode, signature table feature `gen_batch`) makes the core run the client's own terrain generator in a loop on worker threads: a job file of `area seed topology orientation` lines in, `batch-results.tsv` (tile hash, doodad hash, map size, time, error text) out, without a login. It builds a throw-away `ClientWorld` per job, sets the area row, the forced topology and orientation (the world stats `0xb92` / `0xb93`) and the seed, runs the base generator and destroys everything again; the generator's `TerrainGenerationException` for layouts that cannot be built is turned into an error line (`poe-hook-core/src/cxx_guard.rs`). Enabled by the environment (`POE_HOOK_GEN_BATCH=<run dir>`, `POE_HOOK_GEN_BATCH_THREADS=<n>`) or `poe-hook.toml`; the driver is `scripts/re/terrain_batch.py` in the main repository. How it works, files and addresses: `docs/re/terrain/batch.md` there. The pure parts (job and result file formats) are `poe-hook-shared/src/batch_jobs.rs`, tested on the host.
 
 ## Rules
 

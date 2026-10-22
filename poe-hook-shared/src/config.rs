@@ -32,6 +32,7 @@ pub struct Config {
     pub overlay: OverlayConfig,
     pub packets: PacketConfig,
     pub reload: ReloadConfig,
+    pub gen_batch: GenBatchConfig,
 }
 
 /// How the client is used. The read-only latch also switches on by itself the first time the
@@ -207,6 +208,37 @@ impl Default for ReloadConfig {
     }
 }
 
+/// `[gen_batch]`: in-client batch terrain generation (`poe-hook-core/src/gen_batch.rs`). Off by
+/// default, never in official mode (refused here, in the loader latch and again per job).
+/// Environment: `POE_HOOK_GEN_BATCH=<dir>` enables it with that directory,
+/// `POE_HOOK_GEN_BATCH_THREADS=<n>`.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(default)]
+pub struct GenBatchConfig {
+    pub enabled: bool,
+    /// The run directory: `jobs.txt` (required: `area seed topology orientation` per line),
+    /// optional `export.txt` (same format: jobs whose layout, doodads and grids are written to
+    /// `exports/`) and `suspects.txt` (jobs run first, one at a time); `batch-results.tsv` and
+    /// `batch-done` are written there. A path the game process can open (`Z:\...` under Wine).
+    pub dir: Option<std::path::PathBuf>,
+    /// Worker threads.
+    pub threads: usize,
+    /// Seconds after the core starts before the first job (the client must have loaded its
+    /// data).
+    pub start_delay_seconds: u64,
+}
+
+impl Default for GenBatchConfig {
+    fn default() -> Self {
+        Self {
+            enabled: false,
+            dir: None,
+            threads: 4,
+            start_delay_seconds: 20,
+        }
+    }
+}
+
 impl Config {
     /// Parses the file text and applies the official-mode rules ([`Config::normalize`]).
     pub fn from_toml(text: &str) -> Result<Self, toml::de::Error> {
@@ -221,6 +253,7 @@ impl Config {
         if self.official() {
             self.login_mode = LoginMode::Steam;
             self.trusted_servers.clear();
+            self.gen_batch.enabled = false;
         }
     }
 
@@ -229,6 +262,18 @@ impl Config {
             .ok()
             .and_then(|text| Self::from_toml(&text).ok())
             .unwrap_or_default();
+        if let Some(dir) = std::env::var_os("POE_HOOK_GEN_BATCH").filter(|d| !d.is_empty()) {
+            config.gen_batch.enabled = true;
+            config.gen_batch.dir = Some(dir.into());
+        }
+        if let Some(n) = std::env::var("POE_HOOK_GEN_BATCH_THREADS")
+            .ok()
+            .and_then(|n| n.parse::<usize>().ok())
+        {
+            config.gen_batch.threads = n;
+        }
+        // Official mode wins over the environment too.
+        config.normalize();
         if let Ok(keys) = std::env::var("POE_HOOK_AUTO_KEYS") {
             config
                 .features
@@ -282,6 +327,15 @@ mod tests {
         assert!(c.official());
         assert_eq!(c.login_mode, LoginMode::Steam);
         assert!(c.trusted_servers.is_empty());
+    }
+
+    #[test]
+    fn gen_batch_is_off_by_default_and_never_in_official_mode() {
+        assert!(!Config::from_toml("").unwrap().gen_batch.enabled);
+        let c = Config::from_toml("[gen_batch]\nenabled = true\n").unwrap();
+        assert!(c.gen_batch.enabled);
+        let c = Config::from_toml("mode = \"official\"\n[gen_batch]\nenabled = true\n").unwrap();
+        assert!(!c.gen_batch.enabled);
     }
 
     #[test]

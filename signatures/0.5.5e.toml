@@ -251,21 +251,22 @@ ghidra = 0x14167b270
 
 [[sig]]
 name = "load_area_headless"
-features = ["dump_object_types"]
+features = ["dump_object_types", "gen_batch"]
 pattern = "48 89 5c 24 18 48 89 74 24 20 55 57 41 54 41 55 41 57 48 8d ac 24 ?? ?? ?? ??"
 pdata = true
 ghidra = 0x14212f500
+note = "HeadlessWorld_LoadArea (base world vfunc +0x1e0): the sequence gen_batch repeats; anchor of the world generation fields"
 
 [[sig]]
 name = "positioned_reader"
-features = ["dump_object_types", "area_export"]
+features = ["dump_object_types", "area_export", "gen_batch"]
 pattern = "40 55 53 56 57 41 54 41 56 41 57 48 8d ac 24 ?? ?? ?? ?? 48 81 ec ?? ?? ?? ?? 48 8b fa 48 8b f1"
 pdata = true
 ghidra = 0x141dd8820
 
 [[sig]]
 name = "terrain_construct"
-features = ["dump_object_types", "area_export"]
+features = ["dump_object_types", "area_export", "gen_batch"]
 pattern = "48 89 5c 24 10 48 89 4c 24 08 55 56 57 48 83 ec 20 48 8b f2 48 8b f9 e8 ?? ?? ?? ??"
 pdata = true
 ghidra = 0x1415a37e0
@@ -273,7 +274,7 @@ note = "sets the terrain vtable; anchor of terrain_vtable"
 
 [[sig]]
 name = "terrain_vtable"
-features = ["dump_object_types", "area_export"]
+features = ["dump_object_types", "area_export", "gen_batch"]
 kind = "ref"
 anchor = "terrain_construct"
 pattern = "48 8d 05 <t:rip4> 48 89 07"
@@ -330,34 +331,149 @@ ghidra = 0x141de5390
 
 [[sig]]
 name = "terrain_driver"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 pattern = "4c 8b dc 49 89 4b 08 53 56 57 41 54 41 55 41 56 41 57 48 81 ec ?? ?? ?? ?? 4c 8b f1"
 pdata = true
 ghidra = 0x141ffe940
 
 [[sig]]
 name = "terrain_add_object"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 pattern = "48 89 5c 24 18 48 89 74 24 20 55 57 41 54 41 56 41 57 48 8b ec 48 83 ec 60 4d 8b f8 48 8b f2"
 pdata = true
 ghidra = 0x141ff7770
 
 [[sig]]
 name = "tile_doodads"
-features = ["area_export", "generator_trace"]
+features = ["area_export", "gen_batch", "generator_trace"]
 pattern = "48 8b c4 48 89 58 08 4c 89 48 20 48 89 50 10 55 56 57 41 54 41 55 41 56 41 57 48 8d a8 f8 fd ff ff"
 pdata = true
 ghidra = 0x141ff3310
 
 [[sig]]
 name = "doodad_hash_site"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 kind = "site"
 anchor = "tile_doodads"
 pattern = "8b 54 24 70 c1 e2 10"
 expect = "8b 54 24 70"
 ghidra = 0x141ff3643
 note = "right after a doodad's path hash: eax = hash, r15 = tile entry"
+
+[[sig]]
+name = "world_construct_client"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 10 48 89 74 24 18 48 89 4c 24 08 55 57 41 54 41 56 41 57 48 8b ec 48 83 ec 70 0f 29 74 24 60 0f 29 7c 24 50"
+pdata = true
+ghidra = 0x14167d2f0
+note = "ClientWorld constructor (this, frame mode u8, flag u8); the batch makes its own worlds"
+
+[[sig]]
+name = "terrain_gen_construct"
+features = ["gen_batch"]
+pattern = "48 89 4c 24 08 53 55 56 57 41 56 48 83 ec 40 48 8b f2 48 8b f9 48 8d 05 ?? ?? ?? ??"
+pdata = true
+ghidra = 0x141fefa20
+note = "TerrainGen_Construct(generator, world): base generator vtable 0x1434ede68"
+
+[[sig]]
+name = "terrain_gen_destroy"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 08 57 48 83 ec 20 48 8d 05 ?? ?? ?? ?? 48 8b f9 48 89 01 48 81 c1 80 02 00 00"
+pdata = true
+ghidra = 0x141fefe40
+note = "generator destructor"
+
+[[sig]]
+name = "terrain_topology_pick"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 10 48 89 74 24 18 48 89 7c 24 20 55 41 54 41 55 41 56 41 57 48 8d ac 24 ?? ?? ?? ?? 48 81 ec ?? ?? ?? ?? 48 8b f9 45 33 ed 48 8b 49 38"
+pdata = true
+ghidra = 0x141ff9280
+note = "reads map_force_topology (0xb92) / map_force_orientation (0xb93) from the world stats; anchor of fields"
+
+[[sig]]
+name = "world_replace"
+features = ["gen_batch"]
+pattern = "48 8b c4 48 89 58 08 48 89 50 10 55 56 57 41 54 41 55 41 56 41 57 48 8d a8 68 fe ff ff"
+pdata = true
+ghidra = 0x14100b110
+note = "creates the in-game world and destroys the old one through vfunc +0x20 (deleting destructor)"
+
+[[sig]]
+name = "vcrt_getptd"
+features = ["gen_batch"]
+pattern = "48 83 ec 28 e8 ?? ?? ?? ?? 48 85 c0 74 ?? 48 83 c4 28 c3 e8 ?? ?? ?? ?? cc"
+pdata = true
+ghidra = 0x142c14288
+note = "__vcrt_getptd(): the thread's C++ exception state (+0x20/+0x28 exception and context records, +0x58 frame info chain, +0x70 ...); gen_batch restores it after a recovered throw"
+
+[[sig]]
+name = "game_alloc"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 08 57 48 83 ec 20 65 48 8b 04 25 58 00 00 00 48 8b f9 8b 15 ?? ?? ?? ?? 48 8b 1c d0 b8 10 00 00 00 80 3c 18 00 75 ?? e8 ?? ?? ?? ?? b9 38 01 00 00 48 8b d7"
+pdata = true
+ghidra = 0x142bba3c0
+note = "the game's allocator: (size) -> block"
+
+[[sig]]
+name = "game_free"
+features = ["gen_batch"]
+pattern = "4c 8b d1 4c 8d 49 ff 49 81 e1 00 00 00 fe b8 00 00 00 00 4c 0f 4e c8 4d 85 c9"
+pdata = true
+ghidra = 0x142bba2a0
+note = "the game's free: (block)"
+
+[[sig]]
+name = "flat_map_anchor"
+features = ["gen_batch"]
+pattern = "40 53 56 57 48 83 ec 40 8b fa 48 8b f1 48 81 c1 48 03 00 00 45 85 c0 74 ??"
+pdata = true
+ghidra = 0x140b59740
+note = "calls flat_map_set once; anchor of it (the set function itself has no unique prefix)"
+
+[[sig]]
+name = "flat_map_set"
+features = ["gen_batch"]
+kind = "ref"
+anchor = "flat_map_anchor"
+pattern = "45 85 c0 74 ?? e8 <t:rip4> eb ?? e8 ?? ?? ?? ??"
+capture = "t"
+expect = "40 53 57 41 54 41 56"
+ghidra = 0x1423ba400
+note = "sorted (i32 key, i32 value) vector set (this, key, value); the world stats at world +0x128"
+
+[[sig]]
+name = "world_areas_table"
+features = ["gen_batch"]
+pattern = "40 53 48 83 ec 40 48 c7 44 24 38 1b 00 00 00 48 8d 05 ?? ?? ?? ?? 48 89 44 24 30"
+pdata = true
+ghidra = 0x140223710
+note = "(out) -> reference-counted Data/Balance/WorldAreas.dat table object"
+
+[[sig]]
+name = "resource_wait_loaded"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 10 48 89 74 24 18 57 48 83 ec 50 48 8b f9 8b 41 40 83 f8 02"
+pdata = true
+ghidra = 0x1421d6e30
+note = "blocks until a resource (state +0x40 == 2) is loaded"
+
+[[sig]]
+name = "room_check_user"
+features = ["gen_batch"]
+pattern = "48 89 4c 24 08 53 55 56 57 41 56 48 81 ec ?? ?? ?? ?? 49 8b f0 48 8b f9"
+pdata = true
+ghidra = 0x141eff290
+note = "Incursion temple room constructor: reads the WorldAreas table object from world +0xa0; anchor of world.area_table"
+
+[[sig]]
+name = "table_rows_user"
+features = ["gen_batch"]
+pattern = "48 89 5c 24 08 48 89 6c 24 20 56 57 41 54 41 56 41 57 48 83 ec 30 4c 8b f2"
+pdata = true
+ghidra = 0x141d02ba0
+note = "reads table +0x28 -> (begin, end) of the rows; anchor of table.rows"
 
 [[sig]]
 name = "terrain_seed_rng"
@@ -608,7 +724,7 @@ ghidra = 0x141ffab20
 
 [[sig]]
 name = "phase_doodads"
-features = ["generator_trace", "area_export"]
+features = ["generator_trace", "area_export", "gen_batch"]
 pattern = "48 89 4c 24 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8d ac 24 ?? ?? ?? ?? b8 08 16 00 00"
 pdata = true
 ghidra = 0x141ff5550
@@ -643,7 +759,7 @@ ghidra = 0x141ffe0a0
 
 [[sig]]
 name = "phase_tile_hash"
-features = ["generator_trace", "area_export"]
+features = ["generator_trace", "area_export", "gen_batch"]
 pattern = "4c 8b dc 49 89 5b 10 49 89 6b 18 49 89 73 20 57 41 56 41 57 48 83 ec 40 48 8b e9"
 pdata = true
 ghidra = 0x141d141d0
@@ -934,7 +1050,7 @@ value = 0x17cc
 
 [[field]]
 name = "world.area"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "dump_object_types", "gen_batch"]
 anchor = "load_area_client"
 pattern = "48 8b 81 <world_area:4> 48 85 c0 74 ?? 83 b8 <area_kind:4> 21"
 capture = "world_area"
@@ -943,7 +1059,7 @@ value = 0x98
 
 [[field]]
 name = "area.kind"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "dump_object_types", "gen_batch"]
 anchor = "load_area_client"
 pattern = "48 8b 81 <world_area:4> 48 85 c0 74 ?? 83 b8 <area_kind:4> 21"
 capture = "area_kind"
@@ -952,7 +1068,7 @@ value = 0x1b4
 
 [[field]]
 name = "world.tile_hash"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "dump_object_types", "gen_batch"]
 anchor = "load_area_client"
 pattern = "0f 84 ?? ?? ?? ?? ba 01 00 00 00 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 90 48 8d 15 ?? ?? ?? ?? 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 8b 93 <world_tile_hash:4> 48 8b c8 e8 ?? ?? ?? ?? 48 8d 54 24 ?? 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 90 ff 15 ?? ?? ?? ?? 8b f8"
 capture = "world_tile_hash"
@@ -960,7 +1076,7 @@ value = 0x114
 
 [[field]]
 name = "world.doodad_hash"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "dump_object_types", "gen_batch"]
 anchor = "load_area_client"
 pattern = "e8 ?? ?? ?? ?? ba 01 00 00 00 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 90 48 8d 15 ?? ?? ?? ?? 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 8b 93 <world_doodad_hash:4> 48 8b c8 e8 ?? ?? ?? ?? 48 8d 54 24 ?? 48 8d 8c 24 ?? ?? ?? ?? e8 ?? ?? ?? ?? 90 ff 15 ?? ?? ?? ?? 8b f8"
 capture = "world_doodad_hash"
@@ -968,8 +1084,130 @@ value = 0x118
 # 3 instructions in load_area_client use this displacement; the one at 0x14167b56e is used
 
 [[field]]
+name = "world.stats"
+features = ["gen_batch"]
+anchor = "load_area_client"
+pattern = "48 8d 8b <world_stats:4> ba 4d 1f 00 00"
+capture = "world_stats"
+value = 0x128
+note = "the world's stat map (sorted i32 key/value pairs at +8..+0x10; map_force_* live here)"
+
+[[field]]
+name = "world.gen_flag"
+features = ["gen_batch"]
+anchor = "load_area_headless"
+pattern = "44 88 a1 <world_gen_flag:4> 89 91 <world_gen_state:4> 44 89 81 <world_gen_seed:4>"
+capture = "world_gen_flag"
+value = 0x663
+note = "u8, cleared before a headless generation"
+
+[[field]]
+name = "world.gen_state"
+features = ["gen_batch"]
+anchor = "load_area_headless"
+pattern = "44 88 a1 <world_gen_flag:4> 89 91 <world_gen_state:4> 44 89 81 <world_gen_seed:4>"
+capture = "world_gen_state"
+value = 0x4b0
+note = "the generation state (u32 +0, seed u32 +4)"
+# 2 instructions in load_area_headless use this displacement; the one at 0x14212f538 is used
+
+[[field]]
+name = "world.gen_seed"
+features = ["gen_batch"]
+anchor = "load_area_headless"
+pattern = "44 88 a1 <world_gen_flag:4> 89 91 <world_gen_state:4> 44 89 81 <world_gen_seed:4>"
+capture = "world_gen_seed"
+value = 0x4b4
+
+[[field]]
+name = "world.league_mode"
+features = ["gen_batch"]
+anchor = "terrain_topology_pick"
+pattern = "48 8b 4a <area_topology_count:1> 8b c3 48 3b c1 0f 87 ?? ?? ?? ?? 48 c1 e1 04 48 c1 f9 04 48 8b 42 <area_topology_list:1> 48 89 4c 24 40 48 89 44 24 48 0f 28 44 24 40 66 0f 7f 44 24 40 48 8d 44 24 ?? 48 89 44 24 20 44 0f b6 ce 44 8b c3 48 8d 54 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 8b 44 24 50 48 89 44 24 40 48 8b 5c 24 58 48 89 5c 24 48 48 85 db 74 ?? f0 ff 43 3c 48 8b 5c 24 58 8b 05 ?? ?? ?? ?? 89 43 38 48 8b 57 38 48 81 c2 98 00 00 00 44 0f b6 4c 24 60 4c 8d 44 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 85 db 0f 84 ?? ?? ?? ?? f0 ff 4b 3c e9 ?? ?? ?? ?? 41 8b d6 48 8d 4d ?? e8 ?? ?? ?? ?? 90 48 8d 15 ?? ?? ?? ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 8d 53 ff 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8b 4f 38 48 8b 91 98 00 00 00 48 8b 12 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 54 24 ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 90 ff 15 ?? ?? ?? ?? 8b d8 48 8d 8d ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 44 24 ?? 48 89 44 24 30 4c 89 6c 24 28 c6 44 24 20 00 45 8b ce 44 8b c3 48 8b 95 ?? ?? ?? ?? b9 fb 74 ef a5 e8 ?? ?? ?? ?? 90 48 8d 4c 24 ?? e8 ?? ?? ?? ?? 90 48 8d 4d ?? e8 ?? ?? ?? ?? 48 8b 47 38 48 8d 90 98 00 00 00 44 8b 80 <world_league_mode:4>"
+capture = "world_league_mode"
+value = 0xb8
+note = "u32 mode column the topologies are filtered by"
+# 3 instructions in terrain_topology_pick use this displacement; the one at 0x141ff948c is used
+
+[[field]]
+name = "area.topology_count"
+features = ["gen_batch"]
+anchor = "terrain_topology_pick"
+pattern = "48 8b 4a <area_topology_count:1> 8b c3 48 3b c1 0f 87 ?? ?? ?? ?? 48 c1 e1 04 48 c1 f9 04 48 8b 42 <area_topology_list:1> 48 89 4c 24 40 48 89 44 24 48 0f 28 44 24 40 66 0f 7f 44 24 40 48 8d 44 24 ?? 48 89 44 24 20 44 0f b6 ce 44 8b c3 48 8d 54 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 8b 44 24 50 48 89 44 24 40 48 8b 5c 24 58 48 89 5c 24 48 48 85 db 74 ?? f0 ff 43 3c 48 8b 5c 24 58 8b 05 ?? ?? ?? ?? 89 43 38 48 8b 57 38 48 81 c2 98 00 00 00 44 0f b6 4c 24 60 4c 8d 44 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 85 db 0f 84 ?? ?? ?? ?? f0 ff 4b 3c e9 ?? ?? ?? ?? 41 8b d6 48 8d 4d ?? e8 ?? ?? ?? ?? 90 48 8d 15 ?? ?? ?? ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 8d 53 ff 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8b 4f 38 48 8b 91 98 00 00 00 48 8b 12 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 54 24 ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 90 ff 15 ?? ?? ?? ?? 8b d8 48 8d 8d ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 44 24 ?? 48 89 44 24 30 4c 89 6c 24 28 c6 44 24 20 00 45 8b ce 44 8b c3 48 8b 95 ?? ?? ?? ?? b9 fb 74 ef a5 e8 ?? ?? ?? ?? 90 48 8d 4c 24 ?? e8 ?? ?? ?? ?? 90 48 8d 4d ?? e8 ?? ?? ?? ?? 48 8b 47 38 48 8d 90 98 00 00 00 44 8b 80 <world_league_mode:4>"
+capture = "area_topology_count"
+value = 0x60
+# 4 instructions in terrain_topology_pick use this displacement; the one at 0x141ff9317 is used
+
+[[field]]
+name = "area.topology_list"
+features = ["gen_batch"]
+anchor = "terrain_topology_pick"
+pattern = "48 8b 4a <area_topology_count:1> 8b c3 48 3b c1 0f 87 ?? ?? ?? ?? 48 c1 e1 04 48 c1 f9 04 48 8b 42 <area_topology_list:1> 48 89 4c 24 40 48 89 44 24 48 0f 28 44 24 40 66 0f 7f 44 24 40 48 8d 44 24 ?? 48 89 44 24 20 44 0f b6 ce 44 8b c3 48 8d 54 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 8b 44 24 50 48 89 44 24 40 48 8b 5c 24 58 48 89 5c 24 48 48 85 db 74 ?? f0 ff 43 3c 48 8b 5c 24 58 8b 05 ?? ?? ?? ?? 89 43 38 48 8b 57 38 48 81 c2 98 00 00 00 44 0f b6 4c 24 60 4c 8d 44 24 ?? 48 8b cf e8 ?? ?? ?? ?? 90 48 85 db 0f 84 ?? ?? ?? ?? f0 ff 4b 3c e9 ?? ?? ?? ?? 41 8b d6 48 8d 4d ?? e8 ?? ?? ?? ?? 90 48 8d 15 ?? ?? ?? ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 8d 53 ff 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8b 4f 38 48 8b 91 98 00 00 00 48 8b 12 48 8b c8 e8 ?? ?? ?? ?? 48 8b c8 48 8d 15 ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 54 24 ?? 48 8d 4d ?? e8 ?? ?? ?? ?? 90 ff 15 ?? ?? ?? ?? 8b d8 48 8d 8d ?? ?? ?? ?? e8 ?? ?? ?? ?? 48 8d 44 24 ?? 48 89 44 24 30 4c 89 6c 24 28 c6 44 24 20 00 45 8b ce 44 8b c3 48 8b 95 ?? ?? ?? ?? b9 fb 74 ef a5 e8 ?? ?? ?? ?? 90 48 8d 4c 24 ?? e8 ?? ?? ?? ?? 90 48 8d 4d ?? e8 ?? ?? ?? ?? 48 8b 47 38 48 8d 90 98 00 00 00 44 8b 80 <world_league_mode:4>"
+capture = "area_topology_list"
+value = 0x68
+note = "16-byte entries"
+
+[[field]]
+name = "generator.validate"
+features = ["gen_batch"]
+anchor = "terrain_gen_construct"
+pattern = "c6 41 <generator_validate:1> 01 ba 74 95 29 24"
+capture = "generator_validate"
+value = 0xe
+note = "u8, 1 after construction: runs the tile map validation pass (0x141ffdab0, throws TerrainGenerationException); the client clears it"
+
+[[field]]
+name = "world.vt_delete"
+features = ["gen_batch"]
+anchor = "world_replace"
+pattern = "41 8b d5 ff 50 <world_vt_delete:1> 49 8b 06"
+capture = "world_vt_delete"
+value = 0x20
+note = "vtable slot: deleting destructor (this, 1)"
+# 9 instructions in world_replace use this displacement; the one at 0x14100b81b is used
+
+[[field]]
+name = "resource.state"
+features = ["gen_batch"]
+anchor = "resource_wait_loaded"
+pattern = "48 8b f9 8b 41 <resource_state:1> 83 f8 02"
+capture = "resource_state"
+value = 0x40
+note = "2 = loaded"
+# 7 instructions in resource_wait_loaded use this displacement; the one at 0x1421d6e42 is used
+
+[[field]]
+name = "table.rows"
+features = ["gen_batch"]
+anchor = "table_rows_user"
+pattern = "f0 ff 43 <resource_refs:1> 8b 0d ?? ?? ?? ?? 89 4b 38 48 8b 5c 24 68 48 8b 08 48 85 c9 74 ?? e8 ?? ?? ?? ?? 90 48 8b 44 24 70 48 85 c0 74 ?? f0 ff 48 3c 48 8b 5c 24 68 49 8b 3e 4d 8b 76 08 49 3b fe 0f 84 ?? ?? ?? ?? 49 bc 73 d7 cf 16 2b c3 37 a2 0f b6 2f 48 85 db 74 ?? 48 8b cb e8 ?? ?? ?? ?? 48 8b 43 <table_rows:1>"
+capture = "table_rows"
+value = 0x28
+note = "pointer to (begin, end) of the table rows"
+# 8 instructions in table_rows_user use this displacement; the one at 0x141d02c41 is used
+
+[[field]]
+name = "resource.refs"
+features = ["gen_batch"]
+anchor = "table_rows_user"
+pattern = "f0 ff 43 <resource_refs:1> 8b 0d ?? ?? ?? ?? 89 4b 38 48 8b 5c 24 68 48 8b 08 48 85 c9 74 ?? e8 ?? ?? ?? ?? 90 48 8b 44 24 70 48 85 c0 74 ?? f0 ff 48 3c 48 8b 5c 24 68 49 8b 3e 4d 8b 76 08 49 3b fe 0f 84 ?? ?? ?? ?? 49 bc 73 d7 cf 16 2b c3 37 a2 0f b6 2f 48 85 db 74 ?? 48 8b cb e8 ?? ?? ?? ?? 48 8b 43 <table_rows:1>"
+capture = "resource_refs"
+value = 0x3c
+note = "i32 reference count (lock inc / lock dec)"
+# 7 instructions in table_rows_user use this displacement; the one at 0x141d02be4 is used
+
+[[field]]
+name = "world.area_table"
+features = ["gen_batch"]
+anchor = "room_check_user"
+pattern = "4c 8d 86 <world_area_table:4> ba 33 7e 00 00"
+capture = "world_area_table"
+value = 0xa0
+note = "reference-counted WorldAreas table object (the world's area row belongs to it); the world's destructor releases it"
+
+[[field]]
 name = "generator.world"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 anchor = "terrain_driver"
 pattern = "49 8b 46 <generator_world:1> 48 8b 88 98 00 00 00 48 85 c9 74 ?? 83 b9 b4 01 00 00 20 74 ?? 49 8b 4e <generator_terrain:1>"
 capture = "generator_world"
@@ -978,7 +1216,7 @@ value = 0x38
 
 [[field]]
 name = "generator.terrain"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 anchor = "terrain_driver"
 pattern = "49 8b 46 <generator_world:1> 48 8b 88 98 00 00 00 48 85 c9 74 ?? 83 b9 b4 01 00 00 20 74 ?? 49 8b 4e <generator_terrain:1>"
 capture = "generator_terrain"
@@ -987,7 +1225,7 @@ value = 0x28
 
 [[field]]
 name = "generator.state"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 anchor = "terrain_driver"
 pattern = "eb ?? 49 8b 46 <generator_state:1> 4c 8b 78 10"
 capture = "generator_state"
@@ -996,7 +1234,7 @@ value = 0x30
 
 [[field]]
 name = "state.seed"
-features = ["area_export"]
+features = ["area_export", "gen_batch"]
 anchor = "terrain_driver"
 pattern = "48 8b 03 8b 48 <state_seed:1> e8 ?? ?? ?? ?? 49 8b 0f"
 capture = "state_seed"
@@ -1006,7 +1244,7 @@ note = "u32 at the generation state"
 
 [[field]]
 name = "terrain.width"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "gen_batch", "dump_object_types"]
 anchor = "phase_tile_hash"
 pattern = "49 c7 43 d8 00 00 00 00 8b 41 <terrain_width:1> 0f af 41 <terrain_height:1> 8b c8"
 capture = "terrain_width"
@@ -1015,7 +1253,7 @@ value = 0x18
 
 [[field]]
 name = "terrain.height"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "gen_batch", "dump_object_types"]
 anchor = "phase_tile_hash"
 pattern = "49 c7 43 d8 00 00 00 00 8b 41 <terrain_width:1> 0f af 41 <terrain_height:1> 8b c8"
 capture = "terrain_height"
@@ -1024,7 +1262,7 @@ value = 0x20
 
 [[field]]
 name = "terrain.tiles"
-features = ["area_export", "dump_object_types"]
+features = ["area_export", "gen_batch", "dump_object_types"]
 anchor = "phase_tile_hash"
 pattern = "48 6b d8 38 48 03 5d <terrain_tiles:1> 48 83 3b 00"
 capture = "terrain_tiles"

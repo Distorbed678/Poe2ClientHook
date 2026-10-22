@@ -119,6 +119,26 @@ unsafe extern "system" fn handler(info: *mut EXCEPTION_POINTERS) -> i32 {
     EXCEPTION_CONTINUE_SEARCH
 }
 
+/// `(object, type name)` of a C++ exception record (`ExceptionInformation`: [magic, object,
+/// ThrowInfo*, image base]).
+pub(crate) fn cpp_exception_type(
+    record: &windows_sys::Win32::System::Diagnostics::Debug::EXCEPTION_RECORD,
+) -> Option<(usize, String)> {
+    if record.NumberParameters < 4 {
+        return None;
+    }
+    let object = record.ExceptionInformation[1];
+    let throw_info = record.ExceptionInformation[2];
+    let image = record.ExceptionInformation[3];
+    // ThrowInfo { attributes, pmfnUnwind, pForwardCompat, pCatchableTypeArray } (RVAs).
+    let name = read::<u32>(throw_info + 0xc)
+        .and_then(|cta| read::<u32>(image + cta as usize + 4))
+        .and_then(|ct| read::<u32>(image + ct as usize + 4))
+        .and_then(|td| c_string(image + td as usize + 0x10, 128))
+        .unwrap_or_default();
+    Some((object, name))
+}
+
 /// `ExceptionInformation`: [magic, object, ThrowInfo*, image base].
 fn log_cpp_exception(
     record: &windows_sys::Win32::System::Diagnostics::Debug::EXCEPTION_RECORD,

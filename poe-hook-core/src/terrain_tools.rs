@@ -136,8 +136,37 @@ static TRACE_BUF: Mutex<Vec<String>> = Mutex::new(Vec::new());
 static GEN_OBJECTS: Mutex<Option<HashMap<u32, Vec<(usize, usize)>>>> = Mutex::new(None);
 static CURRENT: Mutex<Option<Area>> = Mutex::new(None);
 /// Doodads that entered the doodad hash: (x, y, angle, path hash, path).
-type Doodad = (i32, i32, f32, u32, String);
+pub type Doodad = (i32, i32, f32, u32, String);
 static DOODADS: Mutex<Option<HashMap<u32, Vec<Doodad>>>> = Mutex::new(None);
+
+thread_local! {
+    /// Batch generation on this thread (`gen_batch`): 0 no, 1 yes, 2 yes and keep the doodads
+    /// and objects of the generation ([`batch_take`]). A batch generation is never exported.
+    static BATCH: std::cell::Cell<u8> = const { std::cell::Cell::new(0) };
+    static CAPTURED: std::cell::RefCell<Option<Captured>> = const { std::cell::RefCell::new(None) };
+}
+
+/// What a batch generation with capture produced besides the hashes.
+pub struct Captured {
+    pub doodads: Vec<Doodad>,
+    pub objects: Vec<(usize, usize)>,
+}
+
+/// Marks the calling thread's next generations as batch generations (`capture`: keep the
+/// doodads and objects, for the export list); [`batch_end`] undoes it.
+pub fn batch_begin(capture: bool) {
+    BATCH.with(|b| b.set(if capture { 2 } else { 1 }));
+    CAPTURED.with(|c| *c.borrow_mut() = None);
+}
+
+pub fn batch_end() {
+    BATCH.with(|b| b.set(0));
+}
+
+/// The doodads and objects of the last capturing batch generation on this thread.
+pub fn batch_take() -> Option<Captured> {
+    CAPTURED.with(|c| c.borrow_mut().take())
+}
 
 /// The calling thread's entry of a per-thread buffer, taken out.
 fn take_mine<T>(m: &Mutex<Option<HashMap<u32, Vec<T>>>>) -> Vec<T> {
@@ -166,18 +195,20 @@ struct Area {
     objects: Vec<(usize, usize)>,
 }
 
-pub fn init(main: &Module, export: bool, trace: bool) -> Result<(), String> {
+pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(), String> {
     // Resolve every address of the enabled parts before anything is installed.
     let addr = |name: &str| crate::sigs::addr(name);
     let mut plan: Vec<(usize, HookType, usize)> = Vec::new();
-    if export {
+    // `gen_batch` needs the driver (the hook keeps batch generations out of the export) and the
+    // object and doodad hooks (the export list).
+    if export || batch {
         plan.push((addr(DRIVER)?, HookType::Retn(on_driver), 0));
         plan.push((addr(ADD_OBJECT)?, HookType::JmpBack(on_add_object), 0));
         plan.push((addr(DOODAD_HASH_SITE)?, HookType::JmpBack(on_doodad), 0));
     }
     if trace {
         // The trace also needs the driver (it brackets each generation) but not the export.
-        if !export {
+        if !export && !batch {
             plan.push((addr(DRIVER)?, HookType::Retn(on_driver), 0));
         }
         plan.push((addr(SEED_RNG)?, HookType::JmpBack(on_seed), 0));
@@ -267,6 +298,24 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
     let mut guard = crate::hook_guard!("terrain_tools::on_driver");
     let r = unsafe { &*regs };
     let generator = r.rcx as usize;
+    let batch = BATCH.with(|b| b.get());
+    if batch != 0 {
+        // `gen_batch` drives this generation: no export, no trace.
+        if batch == 2 {
+            take_mine(&GEN_OBJECTS);
+            take_mine(&DOODADS);
+        }
+        let f: DriverFn = unsafe { std::mem::transmute(original) };
+        let ret = guard.original(|| unsafe { f(generator) });
+        if batch == 2 {
+            let captured = Captured {
+                doodads: take_mine(&DOODADS),
+                objects: take_mine(&GEN_OBJECTS),
+            };
+            CAPTURED.with(|c| *c.borrow_mut() = Some(captured));
+        }
+        return ret;
+    }
     let o = crate::sigs::off();
     let world = read::<usize>(generator + o.generator_world).unwrap_or(0);
     let seed = read::<usize>(generator + o.generator_state)
@@ -302,12 +351,18 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
 }
 
 unsafe extern "win64" fn on_add_object(regs: *mut Registers, _: usize) {
+    if BATCH.with(|b| b.get()) == 1 {
+        return;
+    }
     let _guard = crate::hook_guard!("terrain_tools::on_add_object");
     let r = unsafe { &*regs };
     push_mine(&GEN_OBJECTS, (r.rdx as usize, r.r8 as usize));
 }
 
 unsafe extern "win64" fn on_doodad(regs: *mut Registers, _: usize) {
+    if BATCH.with(|b| b.get()) == 1 {
+        return;
+    }
     let _guard = crate::hook_guard!("terrain_tools::on_doodad");
     let r = unsafe { &*regs };
     let rsp = r.rsp as usize;
@@ -1073,13 +1128,13 @@ fn tile_hash_entry(x: u32, y: u32, height: i16, orientation: u8, path_hash: u32)
     finish(h.wrapping_mul(M) ^ mix(path_hash))
 }
 
-struct Tiles {
-    w: usize,
-    h: usize,
+pub(crate) struct Tiles {
+    pub w: usize,
+    pub h: usize,
     records: usize,
 }
 
-fn tiles(terrain: usize) -> Option<Tiles> {
+pub(crate) fn tiles(terrain: usize) -> Option<Tiles> {
     let o = crate::sigs::off();
     let w = read::<u32>(terrain + o.terrain_width)? as usize;
     let h = read::<u32>(terrain + o.terrain_height)? as usize;
@@ -1089,7 +1144,7 @@ fn tiles(terrain: usize) -> Option<Tiles> {
 }
 
 /// `layout.tsv` and the recomputed tile hash.
-fn layout(t: &Tiles) -> (String, u32) {
+pub(crate) fn layout(t: &Tiles) -> (String, u32) {
     let mut out = String::from(
         "# x\ty\ttile path\tsub-tile index\theight(+0x30)\torientation(+0x36)\tskip(+0x34,+0x35)\tnibbles(+0x32,+0x33)\tflags(+0x37)\tlist(+0x10) entries\traw +0x10..+0x38\n",
     );
