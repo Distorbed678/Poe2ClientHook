@@ -548,6 +548,9 @@ fn export(
         }
     }
     if let Some(c) = captured {
+        if let Some(t) = &c.trace {
+            write("generator_trace.tsv", t.as_bytes());
+        }
         let _ = writeln!(meta, "generator_objects\t{}", c.objects.len());
         let computed = c.doodads.iter().fold(0u32, |h, &(x, y, _, ph, _)| {
             h.wrapping_add(y as u32)

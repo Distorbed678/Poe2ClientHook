@@ -150,6 +150,9 @@ thread_local! {
 pub struct Captured {
     pub doodads: Vec<Doodad>,
     pub objects: Vec<(usize, usize)>,
+    /// `generator_trace.tsv` of the job (only with the trace enabled; the buffer is global, so
+    /// run the batch with one thread).
+    pub trace: Option<String>,
 }
 
 /// Marks the calling thread's next generations as batch generations (`capture`: keep the
@@ -301,16 +304,43 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
     let batch = BATCH.with(|b| b.get());
     if batch != 0 {
         // `gen_batch` drives this generation: no export, no trace.
+        let traced = batch == 2 && TRACE.load(Ordering::Relaxed);
         if batch == 2 {
             take_mine(&GEN_OBJECTS);
             take_mine(&DOODADS);
         }
+        if traced {
+            // A job of the export list with the trace enabled: record it like a normal load
+            // (the trace buffer is global: one worker thread).
+            let o = crate::sigs::off();
+            let seed = read::<usize>(generator + o.generator_state)
+                .and_then(|s| read::<u32>(s + o.state_seed))
+                .unwrap_or(0);
+            TRACE_BUF.lock().unwrap().clear();
+            TRACE_SEQ.store(0, Ordering::Relaxed);
+            GRID_DUMPED.store(false, Ordering::Relaxed);
+            trace_line("begin", "", &format!("seed={seed}"), "");
+            GEN_THREAD.store(thread_id(), Ordering::Relaxed);
+        }
         let f: DriverFn = unsafe { std::mem::transmute(original) };
         let ret = guard.original(|| unsafe { f(generator) });
+        if traced {
+            GEN_THREAD.store(0, Ordering::Relaxed);
+        }
         if batch == 2 {
+            let trace = traced.then(|| {
+                let buf = std::mem::take(&mut *TRACE_BUF.lock().unwrap());
+                let mut text = String::from("# seq\tkind\tcaller(s)\targs\tresult\n");
+                for l in &buf {
+                    text += l;
+                    text.push('\n');
+                }
+                text
+            });
             let captured = Captured {
                 doodads: take_mine(&DOODADS),
                 objects: take_mine(&GEN_OBJECTS),
+                trace,
             };
             CAPTURED.with(|c| *c.borrow_mut() = Some(captured));
         }
