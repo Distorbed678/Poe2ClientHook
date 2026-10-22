@@ -131,7 +131,8 @@ jobs:
             printf 'Client hook %s for Path of Exile 2 client %s (Windows x86_64).\n\n' "$VERSION" "${game//_/, }"
             printf 'The Poe2 launcher downloads and verifies this package for you (Client hook). By hand: unpack the zip and follow its README.txt; verify a download with `sha256sum -c <archive>.sha256`.\n\n'
             printf '## Changes\n\n'
-            git log --no-merges --pretty='- %s (%h)' "$range" | cut -c1-240
+            # The newest 40 at most: the first release has no earlier tag to start from.
+            git log --no-merges -n 40 --pretty='- %s (%h)' "$range" | cut -c1-240
           } > notes.md
           cd dist
           pre=()
