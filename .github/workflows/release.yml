@@ -1,0 +1,145 @@
+name: Release hook
+
+# Pushing a tag `hook-v<version>` (for example `hook-v0.2.0`) builds poe_hook.dll (the
+# version.dll proxy) and poe_hook_core.dll for x86_64-pc-windows-msvc, packages them with the
+# signature tables and a release.json (hook version, supported game versions, mod ABI, SHA-256
+# of every file), and attaches the zip, its .sha256 and SHA256SUMS to a GitHub release. The
+# Poe2 launcher downloads exactly these. Running the workflow by hand (workflow_dispatch)
+# does the same build and keeps the package as a workflow artifact, without a release.
+# How to cut a release: docs/releasing.md.
+on:
+  push:
+    tags:
+      - 'hook-v*'
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+permissions:
+  contents: read
+
+defaults:
+  run:
+    shell: bash
+
+jobs:
+  version:
+    name: Version
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.v.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: v
+        run: |
+          # The DLLs report the workspace version: a release must say the same.
+          ws=$(sed -n '/^\[workspace\.package\]/,/^\[/{s/^version *= *"\([^"]*\)".*/\1/p}' Cargo.toml | head -n 1)
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            v=${GITHUB_REF_NAME#hook-v}
+            if ! printf '%s' "$v" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; then
+              echo "::error::tag '$GITHUB_REF_NAME' is not hook-v<major>.<minor>.<patch>[-suffix]"
+              exit 1
+            fi
+            if [ "${v%%-*}" != "$ws" ]; then
+              echo "::error::tag version $v does not match [workspace.package] version $ws in Cargo.toml; bump it (and Cargo.lock) first"
+              exit 1
+            fi
+          else
+            v="$ws-dev.${GITHUB_SHA::7}"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Releasing version $v"
+
+  build:
+    name: Build DLLs
+    needs: version
+    runs-on: windows-latest
+    steps:
+      # poe-hook-core uses poe-proto from the nested Poe2Protocol checkout.
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo build --release --locked -p poe-hook -p poe-hook-core --target x86_64-pc-windows-msvc
+      - run: cargo test --locked -p poe-hook-shared
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dlls
+          path: |
+            target/x86_64-pc-windows-msvc/release/poe_hook.dll
+            target/x86_64-pc-windows-msvc/release/poe_hook_core.dll
+          if-no-files-found: error
+          retention-days: 7
+
+  package:
+    name: Package
+    needs: [version, build]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dlls
+          path: dlls
+      - name: Package
+        env:
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          .github/scripts/package-hook.py "$VERSION" dlls dist
+          cd dist
+          cat -- *.sha256 > SHA256SUMS
+          sha256sum --check SHA256SUMS
+          ls -l
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hook-package
+          path: dist/*
+          if-no-files-found: error
+          retention-days: 14
+
+  release:
+    name: GitHub release
+    needs: [version, package]
+    if: github.ref_type == 'tag'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@v4
+        with:
+          name: hook-package
+          path: dist
+      - name: Create or update the release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+          VERSION: ${{ needs.version.outputs.version }}
+        run: |
+          cd dist
+          game=$(grep -ho 'game-[0-9][0-9A-Za-z._]*' -m1 SHA256SUMS | head -n 1 | sed 's/^game-//')
+          cd ..
+          prev=$(git tag --list 'hook-v*' --sort=-version:refname | grep -vx "$TAG" | head -n 1 || true)
+          if [ -n "$prev" ]; then range="$prev..$TAG"; else range="$TAG"; fi
+          {
+            printf 'Client hook %s for Path of Exile 2 client %s (Windows x86_64).\n\n' "$VERSION" "${game//_/, }"
+            printf 'The Poe2 launcher downloads and verifies this package for you (Client hook). By hand: unpack the zip and follow its README.txt; verify a download with `sha256sum -c <archive>.sha256`.\n\n'
+            printf '## Changes\n\n'
+            git log --no-merges --pretty='- %s (%h)' "$range" | cut -c1-240
+          } > notes.md
+          cd dist
+          pre=()
+          case "$VERSION" in *-*) pre=(--prerelease) ;; esac
+          if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" > /dev/null 2>&1; then
+            gh release upload "$TAG" --repo "$GITHUB_REPOSITORY" --clobber -- *.zip *.sha256 SHA256SUMS
+          else
+            gh release create "$TAG" --repo "$GITHUB_REPOSITORY" --verify-tag \
+              --title "Client hook $VERSION (game ${game//_/, })" --notes-file ../notes.md "${pre[@]}" \
+              -- *.zip *.sha256 SHA256SUMS
+          fi

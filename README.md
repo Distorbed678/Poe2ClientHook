@@ -49,6 +49,10 @@ The DLLs, for `x86_64-pc-windows-msvc`:
 Output: `target/x86_64-pc-windows-msvc/release/{poe_hook.dll,poe_hook_core.dll,sample_mod.dll}`. `poe_hook.dll` is installed as the game's
 `version.dll`.
 
+## Releases
+
+Tag `hook-v<version>` and the [Release hook](.github/workflows/release.yml) workflow builds both DLLs for `x86_64-pc-windows-msvc` and publishes `poe-hook-v<version>-game-<game versions>-windows-x86_64.zip` with its `.sha256`, `SHA256SUMS` and a `release.json` (hook version, supported game versions, mod ABI, SHA-256 of every file). The Poe2 launcher downloads, verifies and deploys it ("Client hook"), so nobody needs a Rust toolchain to play. Procedure and package layout: [docs/releasing.md](docs/releasing.md).
+
 ## Signature table
 
 The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: `signatures/0.5.5e.toml` (85 signatures, 51
