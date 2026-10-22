@@ -5,6 +5,7 @@ pub mod abi;
 pub mod config;
 pub mod login;
 pub mod mem;
+pub mod modreport;
 pub mod module;
 pub mod netguard;
 pub mod offsets;

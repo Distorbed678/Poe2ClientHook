@@ -9,7 +9,7 @@
 use std::ffi::c_void;
 
 /// Bumped whenever a struct or function below changes.
-pub const ABI_VERSION: u32 = 2;
+pub const ABI_VERSION: u32 = 3;
 /// Name of the core's entry point.
 pub const CORE_START: &[u8] = b"poe_core_start\0";
 pub type CoreStart = unsafe extern "C" fn(host: *const HostApi) -> *const CoreApi;
@@ -136,6 +136,10 @@ pub struct HostApi {
     pub queue_family: extern "C" fn(queue: u64) -> i32,
     /// Asks the loader to reload the core (from the core's own UI; done on another thread).
     pub request_reload: extern "C" fn(),
+    /// Copies the encoded client mod report ([`crate::modreport::ModReport`]) into `out`
+    /// (`cap` bytes). Returns its length, `-1` when the mod loader has not finished yet (try
+    /// again), or `-2` when `cap` is too small. Empty (no mods) is a valid, short report.
+    pub mod_report: extern "C" fn(out: *mut u8, cap: usize) -> isize,
 }
 
 /// Callbacks the core offers the loader.

@@ -45,6 +45,17 @@ pub fn reload_count() -> u32 {
     api().reload_count
 }
 
+/// The encoded client mod report; `None` while the loader is still loading mods (or if the
+/// report does not fit its buffer).
+pub fn mod_report() -> Option<Vec<u8>> {
+    let mut buf = vec![0u8; 8192];
+    let n = (api().mod_report)(buf.as_mut_ptr(), buf.len());
+    usize::try_from(n).ok().map(|n| {
+        buf.truncate(n);
+        buf
+    })
+}
+
 pub fn request_reload() {
     (api().request_reload)()
 }

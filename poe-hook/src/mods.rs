@@ -14,13 +14,23 @@
 //! - Loaded mods stay loaded for the process (the loader is never unloaded); `poe_mod_shutdown`
 //!   is not called in ABI 1.
 
-use std::{ffi::c_void, path::Path, sync::OnceLock, time::Instant};
+use std::{
+    ffi::c_void,
+    path::Path,
+    sync::{Mutex, OnceLock},
+    time::Instant,
+};
 
 use poe_hook_mod_api::{
     HOOK_API_VERSION, HookApi, MOD_ABI_VERSION, MOD_INIT, ModAbiVersion, ModInit, Str,
 };
 use poe_hook_mods::{LoadSet, MODS_DIR, PlannedMod, STATE_FILE, plan, refusal};
-use poe_hook_shared::{config::Config, module::Module, sigs::Loaded};
+use poe_hook_shared::{
+    config::Config,
+    modreport::{ModReport, ReportedMod, sha256},
+    module::Module,
+    sigs::Loaded,
+};
 use windows_sys::Win32::{
     Foundation::{FreeLibrary, GetLastError},
     System::LibraryLoader::{GetProcAddress, LOAD_WITH_ALTERED_SEARCH_PATH, LoadLibraryExW},
@@ -31,6 +41,41 @@ use windows_sys::Win32::{
 static SIGS: OnceLock<Option<Loaded>> = OnceLock::new();
 /// `(game version, build revision, verified)` of the table, as `'static` strings for the API.
 static BUILD: OnceLock<(&'static str, &'static str, bool)> = OnceLock::new();
+
+/// The client mods that loaded, for the report to a private server (`Kind::ModReport`). `None`
+/// until the loader has decided (it stays `None` only while [`start`] runs; in official mode it
+/// becomes an empty list, and nothing is ever sent there anyway).
+static REPORT: Mutex<Option<ModReport>> = Mutex::new(None);
+
+/// `HostApi::mod_report`: the encoded report, `-1` while the loader is not done, `-2` when
+/// `cap` is too small.
+pub extern "C" fn host_mod_report(out: *mut u8, cap: usize) -> isize {
+    let guard = REPORT.lock().unwrap();
+    let Some(report) = guard.as_ref() else {
+        return -1;
+    };
+    let bytes = report.encode();
+    if bytes.len() > cap || out.is_null() {
+        return -2;
+    }
+    unsafe { std::ptr::copy_nonoverlapping(bytes.as_ptr(), out, bytes.len()) };
+    bytes.len() as isize
+}
+
+/// What the report says about a loaded mod: the installed `mod.toml` and entry DLL hashes.
+fn reported(m: &PlannedMod) -> ReportedMod {
+    ReportedMod {
+        id: m.id.clone(),
+        version: m.manifest.version.clone(),
+        manifest_sha256: std::fs::read(m.dir.join(poe_hook_mods::MANIFEST_FILE))
+            .map(|b| sha256(&b))
+            .unwrap_or([0; 32]),
+        dll_sha256: m
+            .dll
+            .as_ref()
+            .map(|p| std::fs::read(p).map(|b| sha256(&b)).unwrap_or([0; 32])),
+    }
+}
 
 /// Per-mod context behind `HookApi::ctx`.
 struct ModCtx {
@@ -66,8 +111,15 @@ pub fn prepare(exe_dir: &Path, config: &Config) {
 
 /// Loads the enabled mods. Runs once, on the loader's thread, after the core started.
 pub fn start(exe_dir: &Path, config: &Config) {
+    let report = load_all(exe_dir, config);
+    // Only now is the report complete (an empty one when nothing loaded).
+    *REPORT.lock().unwrap() = Some(report);
+}
+
+fn load_all(exe_dir: &Path, config: &Config) -> ModReport {
+    let mut report = ModReport::default();
     let Some(dir) = enabled(exe_dir, config, true) else {
-        return;
+        return report;
     };
     let latch = crate::guard::read_only();
     let build = BUILD.get().copied();
@@ -79,7 +131,7 @@ pub fn start(exe_dir: &Path, config: &Config) {
     );
     if let Some(why) = &plan.refused {
         log::info!("mods: {why}");
-        return;
+        return report;
     }
     for n in &plan.notes {
         log::error!("mods: {n}");
@@ -116,6 +168,7 @@ pub fn start(exe_dir: &Path, config: &Config) {
             Ok(()) => {
                 set.add(&m.manifest);
                 loaded += 1;
+                report.mods.push(reported(m));
                 log::info!(
                     "mods: loaded {} {} ({} ms)",
                     m.id,
@@ -131,6 +184,7 @@ pub fn start(exe_dir: &Path, config: &Config) {
         plan.mods.len() + plan.skipped.len(),
         plan.mods.len() - loaded + plan.skipped.len()
     );
+    report
 }
 
 /// Resolves the table for the mods and logs how long it took.

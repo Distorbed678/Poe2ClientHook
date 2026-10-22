@@ -79,6 +79,7 @@ pub fn start(exe_dir: PathBuf, session_dir: PathBuf, auto_reload: bool) {
         vulkan: crate::vulkan::host_vulkan,
         queue_family: crate::vulkan::host_queue_family,
         request_reload: host_request_reload,
+        mod_report: crate::mods::host_mod_report,
     })
     .ok();
     let file = exe_dir.join(CORE_FILE);

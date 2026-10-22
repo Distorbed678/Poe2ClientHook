@@ -64,12 +64,75 @@ unsafe extern "win64" fn on_instance_ciphers(regs: *mut Registers, _: usize) {
     unsafe { std::ptr::copy_nonoverlapping(addr as *const u8, material.as_mut_ptr(), 64) };
     let keys = SessionKeys::derive(&material);
     log::info!("side channel: session {:016x}", keys.id);
+    let id = keys.id;
     *SESSION.lock().unwrap() = Some(Session {
         keys,
         udp: 0,
         upload: 0,
         debug: ReplayWindow::default(),
     });
+    report_mods(id);
+}
+
+/// Tells the server which client mods are loaded (`Kind::ModReport`, TCP on the instance
+/// port), from a background thread: it waits until the loader has finished loading mods and the
+/// connection to a trusted server is known, and gives up after about a minute. A private server
+/// that requires mods compares the list at login (docs/protocol/side-channel.md). Never sent
+/// without a session, so never to an official server or while read-only.
+fn report_mods(session: u64) {
+    crate::hooks::spawn(move || {
+        for attempt in 1..=60 {
+            if session_id() != Some(session) {
+                return; // a newer instance connection took over
+            }
+            let addr = crate::position_sync::server_addr();
+            let payload = crate::host::mod_report();
+            if let (Some(dest), Some(payload)) = (addr, payload) {
+                match try_report(dest, &payload) {
+                    Ok(msg) => {
+                        log::info!("mod report to the server: {msg}");
+                        return;
+                    }
+                    Err(e) => log::warn!("mod report (attempt {attempt}): {e}"),
+                }
+            }
+            if !crate::hooks::sleep(Duration::from_secs(1)) {
+                return;
+            }
+        }
+        log::warn!(
+            "mod report: not sent (no trusted server connection or the loader never finished)"
+        );
+    });
+}
+
+/// One report connection: the sealed frame, then the server's status.
+fn try_report(dest: ([u8; 4], u16), payload: &[u8]) -> Result<String, String> {
+    if !allowed(dest.0, dest.1) {
+        return Err("server not trusted".into());
+    }
+    let addr = SocketAddr::new(IpAddr::V4(Ipv4Addr::from(dest.0)), dest.1);
+    let frame = {
+        let mut guard = SESSION.lock().unwrap();
+        let s = guard.as_mut().ok_or("no session")?;
+        s.upload += 1;
+        sc::seal(&s.keys, Kind::ModReport, s.upload, payload)
+    };
+    let mut tcp = TcpStream::connect_timeout(&addr, Duration::from_secs(5))
+        .map_err(|e| format!("connect {addr}: {e}"))?;
+    tcp.set_read_timeout(Some(Duration::from_secs(15))).ok();
+    tcp.set_write_timeout(Some(Duration::from_secs(15))).ok();
+    let mut msg = Vec::with_capacity(8 + frame.len());
+    msg.extend_from_slice(&sc::UPLOAD_MAGIC);
+    msg.extend_from_slice(&(frame.len() as u32).to_le_bytes());
+    msg.extend_from_slice(&frame);
+    tcp.write_all(&msg).map_err(|e| format!("send: {e}"))?;
+    let (status, text) = reply(&mut tcp)?;
+    if status == sc::REPLY_OK {
+        Ok(text)
+    } else {
+        Err(format!("refused ({status}): {text}"))
+    }
 }
 
 /// Whether anything may be sent to `ip:port` (see the module docs).

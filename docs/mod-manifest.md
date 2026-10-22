@@ -216,6 +216,14 @@ client off: every failure is logged and the mod is skipped.
    `poe_mod_init`, reports another ABI or returns non-zero is unmapped again and skipped.
 5. Mods stay loaded for the life of the process; `poe_mod_shutdown` is not called in ABI 1.
 
+6. **Report to the server (private mode only).** Once the loader has finished, the list of loaded mods is available to the
+   debug core, which sends it to a private server over the side channel right after the instance connection starts
+   (`Kind::ModReport`, TCP on the instance port, sealed with the session keys; format `poe_hook_shared::modreport`,
+   protocol in the server repository's `docs/protocol/side-channel.md`). Per loaded mod it carries the id, the version, the
+   SHA-256 of the installed `mod.toml` and of the entry DLL (none for a data-only mod). A server that requires client mods
+   compares it at login and refuses a mismatch; an empty list is sent when no mod is loaded. Never sent in official mode, while
+   read-only, or to an untrusted server (there is no side-channel session then). A consistency check, not anti-cheat.
+
 Log lines (in `poe-hook.log`, target `poe_hook::mods`; a mod's own lines carry the target `mod:<id>`):
 
 ```
@@ -224,6 +232,7 @@ mods: loaded sample-mod 0.1.0 (3 ms)
 mods: skipped some-mod: built for mod ABI 2, this loader offers 1 (update poe-hook)
 mods: skipped srv-mod: server-only mod (side = "server"): it has no client half, install it into the server's mods folder
 mods: 1 of 2 enabled loaded, 1 skipped
+mod report to the server: stored
 ```
 
 ## The mod ABI

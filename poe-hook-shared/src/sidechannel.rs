@@ -1,5 +1,6 @@
 //! Authenticated side channel between the client DLL and our instance server: position
-//! reports, the debug link (overlay commands and state) and the terrain upload.
+//! reports, the debug link (overlay commands and state), the terrain upload and the report of
+//! the loaded client mods.
 //!
 //! Everything here is pure (no Windows calls), so the DLL and the server share one
 //! implementation and test it on the host. Wire format: `docs/protocol/side-channel.md`.
@@ -73,6 +74,9 @@ pub enum Kind {
     Upload = 4,
     /// Client to server, TCP: `u32 tile hash`, asks whether the server wants that terrain.
     UploadOffer = 5,
+    /// Client to server, TCP: the client mods the hook has loaded
+    /// ([`crate::modreport::ModReport`]); sent once per instance session.
+    ModReport = 6,
 }
 
 /// Which way a frame travels (picks the key).
@@ -90,6 +94,7 @@ impl Kind {
             3 => Self::Debug,
             4 => Self::Upload,
             5 => Self::UploadOffer,
+            6 => Self::ModReport,
             _ => return None,
         })
     }
