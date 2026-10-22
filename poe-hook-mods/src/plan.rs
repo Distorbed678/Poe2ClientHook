@@ -13,7 +13,9 @@ use std::{
 
 use semver::{Version, VersionReq};
 
-use crate::{HOOK_API, MANIFEST_FILE, Manifest, STATE_FILE, parse_manifest, parse_state, valid_id};
+use crate::{
+    HOOK_API, MANIFEST_FILE, Manifest, STATE_FILE, Side, parse_manifest, parse_state, valid_id,
+};
 
 /// A mod that passed the file-level checks.
 #[derive(Debug, Clone)]
@@ -41,6 +43,10 @@ pub struct Plan {
     /// In load order (the order of `state.toml`).
     pub mods: Vec<PlannedMod>,
     pub skipped: Vec<Skipped>,
+    /// Enabled mods that have no client half (`side = "server"`). They are skipped, never
+    /// loaded; they only count for the dependency and conflict checks of the mods that are
+    /// ([`LoadSet::add_foreign`]).
+    pub other_side: Vec<Manifest>,
     /// Problems with the mod directory itself (an unreadable `state.toml`).
     pub notes: Vec<String>,
 }
@@ -73,6 +79,27 @@ pub fn check_abi(m: &Manifest) -> Result<(), String> {
             "no game.hook_api: a mod with an entry DLL must state the mod ABI it was built against (this loader offers {HOOK_API})"
         )),
         None => Ok(()),
+    }
+}
+
+/// The server-API check on the manifest, for a server that offers `offered`. A mod with a
+/// native server library must state which API it was built against; a mod without one
+/// (commands and data only) needs no number.
+pub fn check_server_api(m: &Manifest, offered: u32) -> Result<(), String> {
+    if !m.has_server_library() {
+        return Ok(());
+    }
+    match m.server_api {
+        Some(v) if v == offered => Ok(()),
+        Some(v) if v > offered => Err(format!(
+            "built for server API {v}, this server offers {offered} (update the server)"
+        )),
+        Some(v) => Err(format!(
+            "built for server API {v}, this server offers {offered} (rebuild the mod)"
+        )),
+        None => Err(format!(
+            "no server.server_api: a mod with a server library must state the server API it was built against (this server offers {offered})"
+        )),
     }
 }
 
@@ -140,6 +167,14 @@ pub fn plan(mods_dir: &Path, official: bool, read_only: bool, game_version: Opti
             ));
             continue;
         }
+        if !m.side.includes_client() {
+            skip(format!(
+                "server-only mod (side = \"{}\"): it has no client half, install it into the server's mods folder",
+                m.side.as_str()
+            ));
+            plan.other_side.push(m);
+            continue;
+        }
         if let Err(why) = check_abi(&m) {
             skip(why);
             continue;
@@ -184,18 +219,32 @@ pub fn plan(mods_dir: &Path, official: bool, read_only: bool, game_version: Opti
 #[derive(Debug, Default)]
 pub struct LoadSet {
     loaded: BTreeMap<String, (Version, Vec<String>)>,
+    /// Mods that are enabled but have no half for this program (server-only mods, seen from
+    /// the client). They satisfy dependencies of mods that also have another half and count
+    /// for conflicts, but are never loaded here.
+    foreign: BTreeMap<String, (Version, Vec<String>)>,
 }
 
 impl LoadSet {
     /// `Ok` when `m` may load now: every dependency has loaded (earlier) in a version that
     /// satisfies the requirement, and no loaded mod conflicts with it or it with them.
+    ///
+    /// Dependencies and conflicts are about the mod, not a half: a mod that has a client and a
+    /// server half may depend on a server-only mod (the dependency matters on the server, so the
+    /// client skips it); a mod with only this program's half may not.
     pub fn check(&self, m: &Manifest) -> Result<(), String> {
         for (dep, req) in &m.dependencies {
-            let Some((have, _)) = self.loaded.get(dep) else {
+            let Some((have, _)) = self.loaded.get(dep).or_else(|| self.foreign.get(dep)) else {
                 return Err(format!(
                     "needs {dep} {req}, which is not loaded (missing, disabled, failed, or ordered after this mod)"
                 ));
             };
+            if self.foreign.contains_key(dep) && m.side != Side::Both {
+                return Err(format!(
+                    "needs {dep} {req}, which is a mod for the other side, and this mod (side = \"{}\") has no other half",
+                    m.side.as_str()
+                ));
+            }
             // Both parsed by the manifest check; a failure here means a hand-built Manifest.
             let ok = VersionReq::parse(req).is_ok_and(|r| r.matches(have));
             if !ok {
@@ -203,11 +252,11 @@ impl LoadSet {
             }
         }
         for c in &m.conflicts {
-            if self.loaded.contains_key(c) {
+            if self.loaded.contains_key(c) || self.foreign.contains_key(c) {
                 return Err(format!("conflicts with {c}, which is loaded"));
             }
         }
-        for (other, (_, conflicts)) in &self.loaded {
+        for (other, (_, conflicts)) in self.loaded.iter().chain(&self.foreign) {
             if conflicts.contains(&m.id) {
                 return Err(format!("{other} conflicts with it and is loaded"));
             }
@@ -219,6 +268,12 @@ impl LoadSet {
     pub fn add(&mut self, m: &Manifest) {
         let v = Version::parse(&m.version).unwrap_or(Version::new(0, 0, 0));
         self.loaded.insert(m.id.clone(), (v, m.conflicts.clone()));
+    }
+
+    /// Records an enabled mod that has no half for this program ([`Plan::other_side`]).
+    pub fn add_foreign(&mut self, m: &Manifest) {
+        let v = Version::parse(&m.version).unwrap_or(Version::new(0, 0, 0));
+        self.foreign.insert(m.id.clone(), (v, m.conflicts.clone()));
     }
 
     pub fn contains(&self, id: &str) -> bool {
@@ -470,6 +525,147 @@ mod tests {
             set.check(&hates)
                 .unwrap_err()
                 .contains("conflicts with core-lib")
+        );
+    }
+
+    fn write_v2(dir: &Path, id: &str, side: &str, body: &str) {
+        let d = dir.join(id);
+        fs::create_dir_all(&d).unwrap();
+        fs::write(
+            d.join("mod.toml"),
+            format!(
+                "manifest_version = 2\nid = \"{id}\"\nname = \"{id}\"\nversion = \"1.0.0\"\nside = \"{side}\"\n{body}"
+            ),
+        )
+        .unwrap();
+    }
+
+    const CLIENT_HALF: &str = "[client]\ndll = \"client/c.dll\"\nhook_api = 1\n";
+    const SERVER_HALF: &str = "[[commands]]\nname = \"hi\"\nreply = \"x\"\n";
+
+    #[test]
+    fn a_server_only_mod_is_refused_cleanly_and_never_gets_a_dll() {
+        let t = tempfile::tempdir().unwrap();
+        write_v2(t.path(), "srv", "server", SERVER_HALF);
+        write_mod(t.path(), "cli", API, Some("c.dll"));
+        enable(t.path(), &["srv", "cli"]);
+        let p = plan(t.path(), false, false, None);
+        assert_eq!(ids(&p), ["cli"]);
+        assert_eq!(p.skipped.len(), 1);
+        assert_eq!(p.skipped[0].id, "srv");
+        assert!(
+            p.skipped[0].reason.contains("server-only mod"),
+            "{:?}",
+            p.skipped
+        );
+        assert_eq!(p.other_side.len(), 1);
+    }
+
+    #[test]
+    fn a_both_mod_loads_its_client_half_and_ignores_the_server_half() {
+        let t = tempfile::tempdir().unwrap();
+        let both = format!(
+            "{CLIENT_HALF}{SERVER_HALF}[server]\nserver_api = 7\n[server.library]\nlinux = \"server/libx.so\"\n"
+        );
+        write_v2(t.path(), "both-mod", "both", &both);
+        fs::create_dir_all(t.path().join("both-mod/client")).unwrap();
+        fs::write(t.path().join("both-mod/client/c.dll"), b"MZ").unwrap();
+        enable(t.path(), &["both-mod"]);
+        let p = plan(t.path(), false, false, None);
+        // The server library is missing and built for another API: irrelevant to the client.
+        assert_eq!(ids(&p), ["both-mod"], "{:?}", p.skipped);
+        assert_eq!(
+            p.mods[0].dll.as_deref(),
+            Some(t.path().join("both-mod/client/c.dll").as_path())
+        );
+        // A client DLL that is missing still skips it.
+        fs::remove_file(t.path().join("both-mod/client/c.dll")).unwrap();
+        let p = plan(t.path(), false, false, None);
+        assert!(p.mods.is_empty());
+        assert!(p.skipped[0].reason.contains("entry DLL"), "{:?}", p.skipped);
+    }
+
+    #[test]
+    fn a_v2_client_mod_with_the_wrong_hook_api_is_still_refused() {
+        let t = tempfile::tempdir().unwrap();
+        write_v2(
+            t.path(),
+            "newer",
+            "client",
+            "[client]\ndll = \"c.dll\"\nhook_api = 99\n",
+        );
+        enable(t.path(), &["newer"]);
+        let p = plan(t.path(), false, false, None);
+        assert!(
+            p.skipped[0].reason.contains("mod ABI 99"),
+            "{:?}",
+            p.skipped
+        );
+    }
+
+    #[test]
+    fn server_api_check_mirrors_the_hook_api_check() {
+        let mut m = Manifest {
+            id: "ab".into(),
+            server_linux: Some("server/libx.so".into()),
+            server_api: Some(2),
+            ..Default::default()
+        };
+        assert!(check_server_api(&m, 2).is_ok());
+        assert!(
+            check_server_api(&m, 1)
+                .unwrap_err()
+                .contains("update the server")
+        );
+        assert!(
+            check_server_api(&m, 3)
+                .unwrap_err()
+                .contains("rebuild the mod")
+        );
+        m.server_api = None;
+        assert!(
+            check_server_api(&m, 2)
+                .unwrap_err()
+                .contains("server.server_api")
+        );
+        // Commands and data need no library, so no number.
+        m.server_linux = None;
+        assert!(check_server_api(&m, 2).is_ok());
+    }
+
+    fn sided(id: &str, side: Side, deps: &[(&str, &str)], conflicts: &[&str]) -> Manifest {
+        Manifest {
+            side,
+            ..manifest(id, "1.0.0", deps, conflicts)
+        }
+    }
+
+    #[test]
+    fn dependencies_and_conflicts_cross_sides() {
+        let mut set = LoadSet::default();
+        set.add_foreign(&sided("srv-lib", Side::Server, &[], &["clash"]));
+        // A both mod may depend on a server-only mod (the dependency matters on the server).
+        let both = sided("user", Side::Both, &[("srv-lib", "^1")], &[]);
+        assert!(set.check(&both).is_ok());
+        // A client-only mod cannot: it has no half the dependency could serve.
+        let client = sided("user", Side::Client, &[("srv-lib", "^1")], &[]);
+        let e = set.check(&client).unwrap_err();
+        assert!(e.contains("other side"), "{e}");
+        // The version still has to fit.
+        let strict = sided("user", Side::Both, &[("srv-lib", ">=2")], &[]);
+        assert!(set.check(&strict).unwrap_err().contains("1.0.0 is loaded"));
+        // Conflicts hold across sides, in both directions.
+        let hates = sided("hates", Side::Client, &[], &["srv-lib"]);
+        assert!(
+            set.check(&hates)
+                .unwrap_err()
+                .contains("conflicts with srv-lib")
+        );
+        let clash = sided("clash", Side::Client, &[], &[]);
+        assert!(
+            set.check(&clash)
+                .unwrap_err()
+                .contains("srv-lib conflicts with it")
         );
     }
 }

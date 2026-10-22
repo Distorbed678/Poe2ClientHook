@@ -49,7 +49,8 @@ fn write_enabled(mods_dir: &Path, enabled: &[String]) -> Result<()> {
 /// `<game_dir>/poe-hook-mods/<id>/` and, with `enable`, appends it to the load order in
 /// `state.toml` (without `enable` it is installed and taken out of the list).
 ///
-/// Only `mod.toml`, the `[data]` paths and the entry DLL are copied. The entry DLL comes from
+/// Only `mod.toml`, the client `[data]` paths and the entry DLL are copied (the server half of a
+/// `both` mod stays out of the game folder; a server-only mod is refused). The entry DLL comes from
 /// `built_dll` (a build output elsewhere) or, when that is `None`, from the source folder.
 /// Refuses a manifest the loader would not accept (invalid, or another mod ABI) and a folder
 /// that exists but was not installed by this function.
@@ -64,6 +65,12 @@ pub fn install_mod(
     let parsed = parse_manifest(&text)
         .map_err(|e| anyhow::anyhow!("invalid {MANIFEST_FILE}: {}", e.join("; ")))?;
     let m = parsed.manifest;
+    if !m.side.includes_client() {
+        bail!(
+            "{}: a server-only mod (side = \"server\") has no client half; install it into the server's mods folder, not the game",
+            m.id
+        );
+    }
     check_abi(&m).map_err(|e| anyhow::anyhow!("{}: {e}", m.id))?;
 
     // Everything that can fail before anything is touched.
@@ -97,6 +104,10 @@ pub fn install_mod(
         copy_tree(&source_dir.join(rel), &dst.join(rel))?;
     }
     if let (Some(rel), Some(from)) = (&m.entry_dll, &dll_from) {
+        // The v2 layout keeps the DLL in a subfolder (`client/`).
+        if let Some(parent) = dst.join(rel).parent() {
+            std::fs::create_dir_all(parent)?;
+        }
         install_file(from, &dst.join(rel))?;
     }
 
@@ -235,6 +246,39 @@ mod tests {
         fs::create_dir_all(game.join("poe-hook-mods/right")).unwrap();
         let e = install_mod(&game, &ok, Some(&built), true).unwrap_err();
         assert!(e.to_string().contains("not overwriting"), "{e}");
+    }
+
+    #[test]
+    fn install_refuses_a_server_only_mod_and_copies_only_the_client_half_of_a_both_mod() {
+        let t = tempfile::tempdir().unwrap();
+        let game = t.path().join("game");
+        let srv = t.path().join("srv");
+        fs::create_dir_all(&srv).unwrap();
+        fs::write(
+            srv.join("mod.toml"),
+            "manifest_version = 2\nid = \"srv\"\nname = \"s\"\nversion = \"1.0.0\"\nside = \"server\"\n[[commands]]\nname = \"hi\"\nreply = \"x\"\n",
+        )
+        .unwrap();
+        let e = install_mod(&game, &srv, None, true)
+            .unwrap_err()
+            .to_string();
+        assert!(e.contains("server-only mod"), "{e}");
+        assert!(!game.join(MODS_DIR).exists(), "nothing may be created");
+
+        let both = t.path().join("both");
+        fs::create_dir_all(both.join("client")).unwrap();
+        fs::create_dir_all(both.join("server")).unwrap();
+        fs::write(both.join("client/b.dll"), b"MZ").unwrap();
+        fs::write(both.join("server/libb.so"), b"ELF").unwrap();
+        fs::write(
+            both.join("mod.toml"),
+            "manifest_version = 2\nid = \"both-mod\"\nname = \"b\"\nversion = \"1.0.0\"\nside = \"both\"\n[client]\ndll = \"client/b.dll\"\nhook_api = 1\n[server]\nserver_api = 1\n[server.library]\nlinux = \"server/libb.so\"\n",
+        )
+        .unwrap();
+        let m = install_mod(&game, &both, None, true).unwrap();
+        assert!(m.dir.join("client/b.dll").is_file());
+        assert!(!m.dir.join("server").exists());
+        assert_eq!(enabled(&game), ["both-mod"]);
     }
 
     #[test]

@@ -88,6 +88,10 @@ pub fn start(exe_dir: &Path, config: &Config) {
         log::error!("mods: skipped {}: {}", s.id, s.reason);
     }
     let mut set = LoadSet::default();
+    // Server-only mods never load here, but a mod with both halves may depend on one.
+    for m in &plan.other_side {
+        set.add_foreign(m);
+    }
     let mut loaded = 0;
     for m in &plan.mods {
         for w in &m.warnings {

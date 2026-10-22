@@ -22,8 +22,10 @@ jobs:
       - uses: Swatinem/rust-cache@v2
       - run: cargo fmt --all --check
       # Warnings are reported but do not fail the build yet.
-      - run: cargo clippy -p poe-hook-deploy --all-targets -- -W clippy::all
-      - run: cargo test -p poe-hook-deploy
+      - run: cargo clippy -p poe-hook-deploy -p poe-hook-mods -p poe-hook-mod-api --all-targets -- -W clippy::all
+      - run: cargo test -p poe-hook-deploy -p poe-hook-mods -p poe-hook-mod-api
+      # The loader DLL takes poe-hook-mods without the package feature.
+      - run: cargo check -p poe-hook-mods --no-default-features
   dll:
     # The DLL workspace, for the client's target.
     runs-on: windows-latest

@@ -35,7 +35,7 @@ publish = false
 poe-hook-shared = { path = "poe-hook-shared" }
 poe-hook-sig = { path = "poe-hook-sig" }
 poe-hook-mod-api = { path = "poe-hook-mod-api" }
-poe-hook-mods = { path = "poe-hook-mods" }
+poe-hook-mods = { path = "poe-hook-mods", default-features = false }
 log = { version = "0.4", features = ["std", "serde"] }
 ilhook = "2"
 serde = { version = "1", features = ["derive"] }
