@@ -66,6 +66,9 @@ const NODE_CANDIDATES: &str = "node_candidates";
 /// Edge routing (`0x1420cd460`: router, edge) → bool: the edge's ends (+0x20/+0x28 nodes,
 /// position +0x4c), end offsets (+0x70/+0x78) and internal points (+8..+0x10) afterwards.
 const ROUTE_EDGE: &str = "route_edge";
+/// `0x141f9d200(lattice ctx, &pos{i32 x, y}, key, wild)` -> 0 when the key fits the terrain, else
+/// a failure code; traced (`ofit` lines) for the overlay candidate scan (`0x141fa1830`).
+const ROOM_FITS: &str = "room_fits";
 /// Virtual-edge splitting (`0x1420bc400`: layout (+0x20 graph), ...): the graph afterwards.
 const SPLIT_VIRTUAL: &str = "split_virtual";
 /// Edge smoothing after routing (`0x1420bd650`: layout, flag): the graph afterwards.
@@ -228,6 +231,7 @@ pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(),
             0,
         ));
         plan.push((addr(ROUTE_EDGE)?, HookType::Retn(on_route_edge), 0));
+        plan.push((addr(ROOM_FITS)?, HookType::Retn(on_room_fits), 0));
         plan.push((addr(SPLIT_VIRTUAL)?, HookType::Retn(on_split_virtual), 0));
         plan.push((addr(SMOOTH_EDGES)?, HookType::Retn(on_smooth_edges), 0));
         plan.push((addr(ARC_START)?, HookType::Retn(on_edge_step), 0));
@@ -968,6 +972,46 @@ unsafe extern "win64" fn on_edge_tiles(regs: *mut Registers, _: usize) {
 }
 
 static GRID_DUMPED: AtomicBool = AtomicBool::new(false);
+
+type RoomFitsFn = unsafe extern "win64" fn(usize, usize, usize, usize) -> usize;
+
+/// `ofit x y w h flags code`: the overlay candidate scan's calls of `0x141f9d200` (callers
+/// inside `0x141fa1830` only; the code is the port's `room_fits` result).
+unsafe extern "win64" fn on_room_fits(regs: *mut Registers, original: usize, _: usize) -> usize {
+    let mut guard = crate::hook_guard!("terrain_tools::on_room_fits");
+    let r = unsafe { &*regs };
+    let (a, pos, key, wild) = (r.rcx as usize, r.rdx as usize, r.r8 as usize, r.r9 as usize);
+    let caller = on_generator_thread().then(|| callers(r.rsp as usize, 1));
+    let f: RoomFitsFn = unsafe { std::mem::transmute(original) };
+    let ret = guard.original(|| unsafe { f(a, pos, key, wild) });
+    if caller.as_deref().is_some_and(|c| c.starts_with("141fa1")) {
+        let xy: [i32; 2] = read(pos).unwrap_or_default();
+        let name = |h: usize| -> String {
+            if h == 0 {
+                "-".into()
+            } else {
+                resource_path(h).rsplit('/').next().unwrap_or("").to_string()
+            }
+        };
+        let edges: Vec<String> = (0..4).map(|k| name(read::<usize>(key + k * 8).unwrap_or(0))).collect();
+        let bytes: [u8; 4] = read(key + 0x42).unwrap_or_default();
+        let grounds: Vec<String> = (0..4).map(|k| name(read::<usize>(key + 0x22 + k * 8).unwrap_or(0))).collect();
+        trace_line(
+            "ofit",
+            "141fa1830",
+            &format!(
+                "{} {} {}x{} f{:x}",
+                xy[0],
+                xy[1],
+                read::<u8>(key + 0x20).unwrap_or(0),
+                read::<u8>(key + 0x21).unwrap_or(0),
+                read::<u8>(key + 0x4e).unwrap_or(0)
+            ),
+            &format!("{} e {} h {:?} g {}", ret as u32, edges.join(","), bytes, grounds.join(",")),
+        );
+    }
+    ret
+}
 
 unsafe extern "win64" fn on_route_edge(regs: *mut Registers, original: usize, _: usize) -> usize {
     let mut guard = crate::hook_guard!("terrain_tools::on_route_edge");

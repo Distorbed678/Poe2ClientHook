@@ -562,6 +562,14 @@ pdata = true
 ghidra = 0x1420cd460
 
 [[sig]]
+name = "room_fits"
+features = ["generator_trace"]
+pattern = "44 88 4c 24 20 55 53 56 57 41 54 41 55 41 56 41 57 48 8d 6c 24 ?? 48 81 ec ?? ?? ?? ??"
+pdata = true
+ghidra = 0x141f9d200
+note = "TileKey fits the terrain at a position: (lattice ctx, &pos, key, wild) -> 0 or a failure code; traced for the overlay candidate scan"
+
+[[sig]]
 name = "split_virtual"
 features = ["generator_trace"]
 pattern = "48 89 5c 24 10 55 56 57 41 56 41 57 48 8d 6c 24 ?? 48 81 ec ?? ?? ?? ?? 4c 8b f2 4c 8b f9"
