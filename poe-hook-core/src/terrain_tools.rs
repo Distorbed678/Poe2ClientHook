@@ -990,12 +990,20 @@ unsafe extern "win64" fn on_room_fits(regs: *mut Registers, original: usize, _: 
             if h == 0 {
                 "-".into()
             } else {
-                resource_path(h).rsplit('/').next().unwrap_or("").to_string()
+                resource_path(h)
+                    .rsplit('/')
+                    .next()
+                    .unwrap_or("")
+                    .to_string()
             }
         };
-        let edges: Vec<String> = (0..4).map(|k| name(read::<usize>(key + k * 8).unwrap_or(0))).collect();
+        let edges: Vec<String> = (0..4)
+            .map(|k| name(read::<usize>(key + k * 8).unwrap_or(0)))
+            .collect();
         let bytes: [u8; 4] = read(key + 0x42).unwrap_or_default();
-        let grounds: Vec<String> = (0..4).map(|k| name(read::<usize>(key + 0x22 + k * 8).unwrap_or(0))).collect();
+        let grounds: Vec<String> = (0..4)
+            .map(|k| name(read::<usize>(key + 0x22 + k * 8).unwrap_or(0)))
+            .collect();
         trace_line(
             "ofit",
             "141fa1830",
@@ -1007,7 +1015,13 @@ unsafe extern "win64" fn on_room_fits(regs: *mut Registers, original: usize, _: 
                 read::<u8>(key + 0x21).unwrap_or(0),
                 read::<u8>(key + 0x4e).unwrap_or(0)
             ),
-            &format!("{} e {} h {:?} g {}", ret as u32, edges.join(","), bytes, grounds.join(",")),
+            &format!(
+                "{} e {} h {:?} g {}",
+                ret as u32,
+                edges.join(","),
+                bytes,
+                grounds.join(",")
+            ),
         );
     }
     ret
