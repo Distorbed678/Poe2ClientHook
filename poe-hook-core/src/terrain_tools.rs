@@ -90,7 +90,16 @@ const LATTICE_STEPS: &[(&str, &str, usize)] = &[
     ("lattice_bdae0", "bdae0", 0x28),
     ("lattice_be360", "be360", 0x28),
     ("lattice_fill", "fill", 0x8),
+    // Per-tile height levelling of the outer fill (`0x141fd71c0`, once per fixed cell and round):
+    // dumped only when the lattice changed since the previous dump.
+    ("lattice_round", "round", 0x8),
 ];
+/// Set by a `round` dump: the next `place_tile` call (the outer buffer strips) dumps the lattice
+/// once more (`afterround`), the state the levelling rounds left.
+static ROUND_ARMED: AtomicBool = AtomicBool::new(false);
+static ROUND_HASH: AtomicU64 = AtomicU64::new(0);
+/// Site inside the levelling step `0x141fd71c0` (after its corner-set call): `round_corner` lines.
+const ROUND_CORNER: &str = "round_corner";
 /// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
 const TILE_LOOKUP: &str = "tile_lookup";
 /// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
@@ -247,6 +256,7 @@ pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(),
         for (i, (sig, _, _)) in LATTICE_STEPS.iter().enumerate() {
             plan.push((addr(sig)?, HookType::JmpBack(on_lattice_step), i));
         }
+        plan.push((addr(ROUND_CORNER)?, HookType::JmpBack(on_round_corner), 0));
         plan.push((addr(RNG_RANGE)?, HookType::JmpBack(on_rng_call), 1));
         for (i, (sig, _)) in PHASES.iter().enumerate() {
             plan.push((addr(sig)?, HookType::JmpBack(on_phase), i));
@@ -494,6 +504,9 @@ unsafe extern "win64" fn on_place(regs: *mut Registers, _: usize) {
         return;
     }
     let r = unsafe { &*regs };
+    if ROUND_ARMED.swap(false, Ordering::Relaxed) {
+        dump_lattice("afterround", r.rcx as usize, false);
+    }
     let tile = read::<usize>(r.r9 as usize)
         .map(resource_path)
         .unwrap_or_default();
@@ -549,6 +562,12 @@ unsafe extern "win64" fn on_lattice_step(regs: *mut Registers, step: usize) {
     let (_, name, view_at) = LATTICE_STEPS[step];
     let r = unsafe { &*regs };
     let view = read::<usize>(r.rcx as usize + view_at).unwrap_or(0);
+    dump_lattice(name, view, name == "round");
+}
+
+/// Dumps the corner lattice of a map view as `lattice` trace lines. With `on_change` only when
+/// the lattice differs from the last such dump (and then arms the `afterround` dump).
+fn dump_lattice(name: &str, view: usize, on_change: bool) {
     let map = read::<usize>(view).unwrap_or(0);
     let (x0, y0) = (
         read::<i32>(view + 8).unwrap_or(0),
@@ -564,6 +583,42 @@ unsafe extern "win64" fn on_lattice_step(regs: *mut Registers, step: usize) {
         read::<usize>(map + 0x68).unwrap_or(0),
         read::<usize>(map + 0x70).unwrap_or(0),
     );
+    // The levelling rounds also touch the aligned tiles outside the view: dump the whole map.
+    let (x0, y0, w, h) = if on_change {
+        let rows = read::<u64>(map + 0x48).unwrap_or(0) as u32;
+        (
+            0,
+            0,
+            (stride as u32).saturating_sub(1),
+            rows.saturating_sub(1),
+        )
+    } else {
+        (x0, y0, w, h)
+    };
+    let mut rows: Vec<String> = Vec::new();
+    if w <= 1024 && h <= 1024 && stride != 0 {
+        for y in 0..=h as usize {
+            let mut row = Vec::with_capacity(w as usize + 1);
+            for x in 0..=w as usize {
+                let at = data + (((y0 as usize + y) * stride) + x0 as usize + x) * 3;
+                let b: [u8; 3] = read(at).unwrap_or_default();
+                row.push(format!("{}.{}.{}", b[0], b[1] as i8, b[2]));
+            }
+            rows.push(row.join(" "));
+        }
+    }
+    if on_change {
+        let mut hash = 0xcbf29ce484222325u64;
+        for row in &rows {
+            for b in row.bytes() {
+                hash = (hash ^ b as u64).wrapping_mul(0x100000001b3);
+            }
+        }
+        if ROUND_HASH.swap(hash, Ordering::Relaxed) == hash {
+            return;
+        }
+        ROUND_ARMED.store(true, Ordering::Relaxed);
+    }
     let mut grounds = Vec::new();
     let mut q = gb;
     while q < ge && grounds.len() < 256 {
@@ -582,22 +637,53 @@ unsafe extern "win64" fn on_lattice_step(regs: *mut Registers, step: usize) {
         &format!("view {x0},{y0} {w}x{h}"),
         &grounds.join(","),
     );
-    if w > 1024 || h > 1024 || stride == 0 {
-        return;
-    }
-    for y in 0..=h as usize {
-        let mut row = Vec::with_capacity(w as usize + 1);
-        for x in 0..=w as usize {
-            let at = data + (((y0 as usize + y) * stride) + x0 as usize + x) * 3;
-            let b: [u8; 3] = read(at).unwrap_or_default();
-            row.push(format!("{}.{}.{}", b[0], b[1] as i8, b[2]));
-        }
-        trace_line("lattice", name, &format!("row {y}"), &row.join(" "));
+    for (y, row) in rows.iter().enumerate() {
+        trace_line("lattice", name, &format!("row {y}"), row);
     }
 }
 
 /// A tile key (`0x4e` bytes): edges[4], size, grounds[4] (at +0x22), heights, exits and
 /// virtual exits (4 bytes each from +0x42).
+/// `round_corner x y n h0..h3 cell`: one tile-levelling step of the outer fill (`0x141fd71c0`):
+/// the cell, the set corner heights of its tile, and the cell's current height (i16 at cell + 0x30).
+unsafe extern "win64" fn on_round_corner(regs: *mut Registers, _: usize) {
+    let _guard = crate::hook_guard!("terrain_tools::on_round_corner");
+    if !on_generator_thread() {
+        return;
+    }
+    let r = unsafe { &*regs };
+    let rsp = r.rsp as usize;
+    let (x, y) = (
+        read::<i32>(r.rsi as usize).unwrap_or(0),
+        read::<i32>(r.rsi as usize + 4).unwrap_or(0),
+    );
+    let (b, e) = (
+        read::<usize>(rsp + 0x30).unwrap_or(0),
+        read::<usize>(rsp + 0x38).unwrap_or(0),
+    );
+    let n = if e >= b { ((e - b) / 4).min(16) } else { 0 };
+    let hs: Vec<String> = (0..n)
+        .map(|i| read::<i32>(b + i * 4).unwrap_or(0).to_string())
+        .collect();
+    // The cell: region struct = *(rdi + 8) = [map, .., x0 @+8, y0 @+0xc].
+    let region = read::<usize>(r.rdi as usize + 8).unwrap_or(0);
+    let map = read::<usize>(region).unwrap_or(0);
+    let (x0, y0) = (
+        read::<i32>(region + 8).unwrap_or(0),
+        read::<i32>(region + 0xc).unwrap_or(0),
+    );
+    let stride = read::<usize>(map + 0x18).unwrap_or(0);
+    let data = read::<usize>(map + 0x28).unwrap_or(0);
+    let cell = data + ((y0 + y) as usize * stride + (x0 + x) as usize) * 0x38;
+    let cur = read::<i16>(cell + 0x30).unwrap_or(0);
+    trace_line(
+        "round_corner",
+        &format!("{x0},{y0}"),
+        &format!("{x} {y} {n} {}", hs.join(" ")),
+        &cur.to_string(),
+    );
+}
+
 unsafe extern "win64" fn on_path_crossings(regs: *mut Registers, _: usize) {
     let _guard = crate::hook_guard!("terrain_tools::on_path_crossings");
     if !on_generator_thread() {

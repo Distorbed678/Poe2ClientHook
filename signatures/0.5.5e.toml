@@ -661,6 +661,23 @@ pdata = true
 ghidra = 0x141f93060
 
 [[sig]]
+name = "lattice_round"
+features = ["generator_trace"]
+pattern = "48 89 5c 24 08 48 89 6c 24 10 48 89 74 24 18 57 48 83 ec 60 48 8b f2 48 8b f9 4c 8b c2"
+pdata = true
+ghidra = 0x141fd71c0
+
+[[sig]]
+name = "round_corner"
+features = ["generator_trace"]
+kind = "site"
+anchor = "lattice_round"
+pattern = "4c 8b 4c 24 30 4c 8b 5c 24 38"
+expect = "4c 8b 4c 24 30"
+ghidra = 0x141fd71eb
+note = "after the corner-set call of one levelling step: rsi = &(x, y), [rsp+0x30..0x38] = vector of the tile's set corner heights"
+
+[[sig]]
 name = "tile_lookup"
 features = ["generator_trace"]
 pattern = "48 89 5c 24 10 4c 89 44 24 18 55 56 57 41 54 41 55 41 56 41 57 48 8d 6c 24 ?? 48 81 ec ?? ?? ?? ?? 49 8b f0"
