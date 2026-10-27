@@ -100,6 +100,31 @@ static ROUND_ARMED: AtomicBool = AtomicBool::new(false);
 static ROUND_HASH: AtomicU64 = AtomicU64::new(0);
 /// Site inside the levelling step `0x141fd71c0` (after its corner-set call): `round_corner` lines.
 const ROUND_CORNER: &str = "round_corner";
+/// Tile-map checkpoints (`tdiff` lines): at each function's entry, the tile records that changed
+/// since the previous checkpoint (or phase), so the next checkpoint shows what a pass did:
+/// graph pipeline `0x141ff05f0`, post-layout stage `0x141ff7a10`, outer fill `0x141fd5ff0`,
+/// outer buffer `0x141fd8360`, grid passes `0x141fe0fd0` / `0x141fe0ea0`, overlay candidate scan
+/// `0x141fa1830`, placeholder fill `0x1420a6140` (also dumps its room grid: `roomgrid` lines),
+/// pre-unique room `0x14209c150` (also lists its ground-only cells: `preunique_cells`), topology
+/// choice `0x141ff9280` (also lists the world-map pins at generator `+0x280`: `map_pins`).
+const TILE_CHECKPOINTS: &[(&str, &str)] = &[
+    ("tdiff_graph", "graph"),
+    ("tdiff_post", "post"),
+    ("tdiff_outer_fill", "outer_fill"),
+    ("tdiff_outer_buffer", "outer_buffer"),
+    ("tdiff_grid_fd0", "grid_fd0"),
+    ("tdiff_grid_ea0", "grid_ea0"),
+    ("tdiff_overlay_scan", "overlay_scan"),
+    ("tdiff_placeholder", "placeholder"),
+    ("tdiff_preunique", "preunique"),
+    ("tdiff_topology", "topology"),
+];
+/// Tile map of the current traced generation (the map of the last `place_tile` view) and its
+/// records at the last checkpoint: (object, height, orientation, skip x, skip y).
+static TILE_MAP: AtomicUsize = AtomicUsize::new(0);
+type TileState = (usize, i16, u8, u8, u8);
+static TILE_SNAP: Mutex<Vec<TileState>> = Mutex::new(Vec::new());
+const TDIFF_LINES_MAX: usize = 20_000;
 /// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
 const TILE_LOOKUP: &str = "tile_lookup";
 /// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
@@ -258,6 +283,9 @@ pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(),
         }
         plan.push((addr(ROUND_CORNER)?, HookType::JmpBack(on_round_corner), 0));
         plan.push((addr(RNG_RANGE)?, HookType::JmpBack(on_rng_call), 1));
+        for (i, (sig, _)) in TILE_CHECKPOINTS.iter().enumerate() {
+            plan.push((addr(sig)?, HookType::JmpBack(on_tile_checkpoint), i));
+        }
         for (i, (sig, _)) in PHASES.iter().enumerate() {
             plan.push((addr(sig)?, HookType::JmpBack(on_phase), i));
         }
@@ -333,6 +361,7 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
             TRACE_BUF.lock().unwrap().clear();
             TRACE_SEQ.store(0, Ordering::Relaxed);
             GRID_DUMPED.store(false, Ordering::Relaxed);
+            tdiff_reset();
             trace_line("begin", "", &format!("seed={seed}"), "");
             GEN_THREAD.store(thread_id(), Ordering::Relaxed);
         }
@@ -376,6 +405,7 @@ unsafe extern "win64" fn on_driver(regs: *mut Registers, original: usize, _: usi
         TRACE_BUF.lock().unwrap().clear();
         TRACE_SEQ.store(0, Ordering::Relaxed);
         GRID_DUMPED.store(false, Ordering::Relaxed);
+        tdiff_reset();
         trace_line("begin", "", &format!("seed={seed}"), "");
     }
     if traced {
@@ -506,6 +536,9 @@ unsafe extern "win64" fn on_place(regs: *mut Registers, _: usize) {
     let r = unsafe { &*regs };
     if ROUND_ARMED.swap(false, Ordering::Relaxed) {
         dump_lattice("afterround", r.rcx as usize, false);
+    }
+    if let Some(map) = read::<usize>(r.rcx as usize) {
+        TILE_MAP.store(map, Ordering::Relaxed);
     }
     let tile = read::<usize>(r.r9 as usize)
         .map(resource_path)
@@ -682,6 +715,205 @@ unsafe extern "win64" fn on_round_corner(regs: *mut Registers, _: usize) {
         &format!("{x} {y} {n} {}", hs.join(" ")),
         &cur.to_string(),
     );
+}
+
+fn tdiff_reset() {
+    TILE_MAP.store(0, Ordering::Relaxed);
+    TILE_SNAP.lock().unwrap().clear();
+}
+
+/// `tdiff <label> x y h<old>-><new> o<old>-><new>` lines: tile records changed since the last
+/// checkpoint (result: the tile file name, `old>new` when it changed; `-` for none).
+fn tile_diff(label: &str) {
+    let map = TILE_MAP.load(Ordering::Relaxed);
+    let Some(t) = (map != 0).then(|| tiles(map)).flatten() else {
+        return;
+    };
+    let mut now = Vec::with_capacity(t.w * t.h);
+    for i in 0..t.w * t.h {
+        let r = t.records + i * TILE_RECORD;
+        let object = read::<usize>(r + 8).unwrap_or(0);
+        let b: [u8; 8] = read(r + 0x30).unwrap_or_default();
+        let height = i16::from_le_bytes([b[0], b[1]]);
+        now.push((object, height, b[6], b[4], b[5]));
+    }
+    let mut snap = TILE_SNAP.lock().unwrap();
+    let name = |o: usize| {
+        if o == 0 {
+            "-".to_string()
+        } else {
+            resource_path(o)
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_string()
+        }
+    };
+    let (mut lines, mut changed) = (0usize, 0usize);
+    for (i, n) in now.iter().enumerate() {
+        let old = snap.get(i).copied().unwrap_or((0, 0, 0, 0, 0));
+        if old == *n {
+            continue;
+        }
+        changed += 1;
+        if lines >= TDIFF_LINES_MAX {
+            continue;
+        }
+        lines += 1;
+        let path = if old.0 == n.0 {
+            name(n.0)
+        } else {
+            format!("{}>{}", name(old.0), name(n.0))
+        };
+        trace_line(
+            "tdiff",
+            label,
+            &format!(
+                "{} {} h{}->{} o{}->{} s{},{}",
+                i % t.w,
+                i / t.w,
+                old.1,
+                n.1,
+                old.2,
+                n.2,
+                n.3,
+                n.4
+            ),
+            &path,
+        );
+    }
+    trace_line(
+        "tdiff_end",
+        label,
+        &format!("{}x{} changed {changed}", t.w, t.h),
+        "",
+    );
+    *snap = now;
+}
+
+unsafe extern "win64" fn on_tile_checkpoint(regs: *mut Registers, index: usize) {
+    let _guard = crate::hook_guard!("terrain_tools::on_tile_checkpoint");
+    if !on_generator_thread() {
+        return;
+    }
+    let r = unsafe { &*regs };
+    let (_, name) = TILE_CHECKPOINTS[index];
+    if name == "post"
+        && let Some(map) = read::<usize>(r.rcx as usize + 0x28)
+    {
+        TILE_MAP.store(map, Ordering::Relaxed);
+    }
+    tile_diff(&format!("pre_{name} {}", callers(r.rsp as usize, 1)));
+    match name {
+        "placeholder" => dump_room_grid(read::<usize>(r.rcx as usize + 0x30).unwrap_or(0)),
+        "preunique" => dump_preunique_cells(r.rcx as usize),
+        "topology" => dump_map_pins(r.rcx as usize),
+        _ => {}
+    }
+}
+
+/// `roomgrid row y`: the placeholder fill's room grid (`+0x28` width, `+0x2c` height, `+0x40`
+/// i32 cells, 0 = free).
+fn dump_room_grid(grid: usize) {
+    let (w, h) = (
+        read::<u32>(grid + 0x28).unwrap_or(0) as usize,
+        read::<u32>(grid + 0x2c).unwrap_or(0) as usize,
+    );
+    let data = read::<usize>(grid + 0x40).unwrap_or(0);
+    trace_line("roomgrid", "", &format!("{w}x{h}"), "");
+    if w > 2048 || h > 2048 || !readable(data, w * h * 4) {
+        return;
+    }
+    for y in 0..h {
+        let row: Vec<String> = (0..w)
+            .map(|x| read::<i32>(data + (y * w + x) * 4).unwrap_or(0).to_string())
+            .collect();
+        trace_line("roomgrid", "", &format!("row {y}"), &row.join(" "));
+    }
+}
+
+/// `map_pins i x y pin`: the world-map pins the natural topology choice lays out (generator
+/// `+0x280..+0x288`, 0x18 bytes: i32 x, y, the `MapPins` row, its table reference), and the pin
+/// directions of the generation state (`+0x30` → `+0x70`, 0x18 bytes: u8 direction, the pin).
+fn dump_map_pins(generator: usize) {
+    let pin_id = |row: usize| {
+        read::<usize>(row)
+            .filter(|&p| p != 0)
+            .and_then(|p| wide_string(p, 128))
+            .unwrap_or_default()
+    };
+    for (kind, b, e) in [
+        (
+            "map_pins",
+            read::<usize>(generator + 0x280).unwrap_or(0),
+            read::<usize>(generator + 0x288).unwrap_or(0),
+        ),
+        {
+            let state = read::<usize>(generator + 0x30).unwrap_or(0);
+            (
+                "pin_dirs",
+                read::<usize>(state + 0x70).unwrap_or(0),
+                read::<usize>(state + 0x78).unwrap_or(0),
+            )
+        },
+    ] {
+        if e < b || (e - b) / 0x18 > 10_000 {
+            continue;
+        }
+        trace_line(kind, "", &format!("count {}", (e - b) / 0x18), "");
+        for i in 0..(e - b) / 0x18 {
+            let c = b + i * 0x18;
+            let row = read::<usize>(c + 8).unwrap_or(0);
+            let args = if kind == "map_pins" {
+                format!(
+                    "{i} {} {}",
+                    read::<i32>(c).unwrap_or(0),
+                    read::<i32>(c + 4).unwrap_or(0)
+                )
+            } else {
+                format!("{i} {}", read::<u8>(c).unwrap_or(0))
+            };
+            trace_line(kind, "", &args, &pin_id(row));
+        }
+    }
+}
+
+/// `preunique_cells i x y acc h ground`: the pre-unique pass's ground-only cell list (ctx
+/// `+0x58..+0x60`, 0x18 bytes: x, y, ground, accessible byte `+0x10`, height `+0x14`), before
+/// its shuffle.
+fn dump_preunique_cells(ctx: usize) {
+    let (b, e) = (
+        read::<usize>(ctx + 0x58).unwrap_or(0),
+        read::<usize>(ctx + 0x60).unwrap_or(0),
+    );
+    if e < b || (e - b) / 0x18 > 100_000 {
+        return;
+    }
+    for i in 0..(e - b) / 0x18 {
+        let c = b + i * 0x18;
+        let ground = read::<usize>(c + 8).unwrap_or(0);
+        let g = if ground == 0 {
+            "-".to_string()
+        } else {
+            resource_path(ground)
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_string()
+        };
+        trace_line(
+            "preunique_cells",
+            "",
+            &format!(
+                "{i} {} {} {} {}",
+                read::<i32>(c).unwrap_or(0),
+                read::<i32>(c + 4).unwrap_or(0),
+                read::<u8>(c + 0x10).unwrap_or(0),
+                read::<i32>(c + 0x14).unwrap_or(0)
+            ),
+            &g,
+        );
+    }
 }
 
 unsafe extern "win64" fn on_path_crossings(regs: *mut Registers, _: usize) {
@@ -1175,6 +1407,7 @@ unsafe extern "win64" fn on_phase(regs: *mut Registers, index: usize) {
     let r = unsafe { &*regs };
     let (sig, name) = PHASES[index];
     let addr = crate::sigs::addr(sig).map_or(0, crate::sigs::ghidra);
+    tile_diff(&format!("phase_{name}"));
     trace_line(
         "phase",
         &callers(r.rsp as usize, 2),
