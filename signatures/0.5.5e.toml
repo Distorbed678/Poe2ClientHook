@@ -736,9 +736,9 @@ ghidra = 0x141fe0ea0
 [[sig]]
 name = "tdiff_overlay_scan"
 features = ["generator_trace"]
-pattern = "48 89 5c 24 10 48 89 6c 24 20 4c 89 44 24 18 56 57 41 54 41 56 41 57 48 81 ec ?? ?? ?? ??"
+pattern = "44 88 44 24 18 48 89 54 24 10 48 89 4c 24 08 55 53 56 57 41 54 41 55 41 56 41 57 48 8d ac 24 ?? ?? ?? ?? 48 81 ec ?? ?? ?? ?? 48 8b f2 4c 8b e9"
 pdata = true
-ghidra = 0x141fa1830
+ghidra = 0x141fa23e0
 
 [[sig]]
 name = "tdiff_placeholder"

@@ -104,7 +104,7 @@ const ROUND_CORNER: &str = "round_corner";
 /// since the previous checkpoint (or phase), so the next checkpoint shows what a pass did:
 /// graph pipeline `0x141ff05f0`, post-layout stage `0x141ff7a10`, outer fill `0x141fd5ff0`,
 /// outer buffer `0x141fd8360`, grid passes `0x141fe0fd0` / `0x141fe0ea0`, overlay candidate scan
-/// `0x141fa1830`, placeholder fill `0x1420a6140` (also dumps its room grid: `roomgrid` lines),
+/// `0x141fa23e0` (also dumps its occupancy grid: `occupancy` lines), placeholder fill `0x1420a6140` (also dumps its room grid: `roomgrid` lines),
 /// pre-unique room `0x14209c150` (also lists its ground-only cells: `preunique_cells`), topology
 /// choice `0x141ff9280` (also lists the world-map pins at generator `+0x280`: `map_pins`).
 const TILE_CHECKPOINTS: &[(&str, &str)] = &[
@@ -808,7 +808,29 @@ unsafe extern "win64" fn on_tile_checkpoint(regs: *mut Registers, index: usize) 
         "placeholder" => dump_room_grid(read::<usize>(r.rcx as usize + 0x30).unwrap_or(0)),
         "preunique" => dump_preunique_cells(r.rcx as usize),
         "topology" => dump_map_pins(r.rcx as usize),
+        "overlay_scan" => dump_occupancy(r.rcx as usize),
         _ => {}
+    }
+}
+
+/// `occupancy row y`: the overlay scan's occupancy bytes (ctx `+0x20` stride, `+0x28` rows,
+/// `+0x30` data; bit 0 = taken; the fit test `0x141fa1830` rejects a cell with any bit outside
+/// the candidate's mask), as hex digits.
+fn dump_occupancy(ctx: usize) {
+    let (w, h, data) = (
+        read::<usize>(ctx + 0x20).unwrap_or(0),
+        read::<usize>(ctx + 0x28).unwrap_or(0),
+        read::<usize>(ctx + 0x30).unwrap_or(0),
+    );
+    trace_line("occupancy", "", &format!("{w}x{h}"), "");
+    if w == 0 || w > 4096 || h > 4096 || !readable(data, w * h) {
+        return;
+    }
+    for y in 0..h {
+        let row: String = (0..w)
+            .map(|x| format!("{:x}", read::<u8>(data + y * w + x).unwrap_or(0) & 0xf))
+            .collect();
+        trace_line("occupancy", "", &format!("row {y}"), &row);
     }
 }
 
