@@ -762,6 +762,16 @@ pdata = true
 ghidra = 0x141ff9280
 
 [[sig]]
+name = "placeholder_sizes"
+features = ["generator_trace"]
+kind = "site"
+anchor = "tdiff_placeholder"
+pattern = "48 89 7d bf 48 8b 47 08"
+expect = "48 89 7d bf"
+ghidra = 0x1420a61fd
+note = "after the door type's size list lookup: rdi = the list (begin, end; 12-byte entries w, h, weight; total weight at +0x18)"
+
+[[sig]]
 name = "phase_prepare"
 features = ["generator_trace"]
 pattern = "48 89 5c 24 10 48 89 74 24 18 57 48 81 ec ?? ?? ?? ?? 48 8b d9 33 f6 48 8b 41 38"

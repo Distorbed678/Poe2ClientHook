@@ -125,6 +125,9 @@ static TILE_MAP: AtomicUsize = AtomicUsize::new(0);
 type TileState = (usize, i16, u8, u8, u8);
 static TILE_SNAP: Mutex<Vec<TileState>> = Mutex::new(Vec::new());
 const TDIFF_LINES_MAX: usize = 20_000;
+/// Site inside the placeholder fill `0x1420a6140` after the door type's size list lookup:
+/// `placeholder_sizes` lines (rdi = the list: begin, end, 12-byte entries w, h, weight; +0x18 total).
+const PLACEHOLDER_SIZES: &str = "placeholder_sizes";
 /// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
 const TILE_LOOKUP: &str = "tile_lookup";
 /// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
@@ -283,6 +286,11 @@ pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(),
         }
         plan.push((addr(ROUND_CORNER)?, HookType::JmpBack(on_round_corner), 0));
         plan.push((addr(RNG_RANGE)?, HookType::JmpBack(on_rng_call), 1));
+        plan.push((
+            addr(PLACEHOLDER_SIZES)?,
+            HookType::JmpBack(on_placeholder_sizes),
+            0,
+        ));
         for (i, (sig, _)) in TILE_CHECKPOINTS.iter().enumerate() {
             plan.push((addr(sig)?, HookType::JmpBack(on_tile_checkpoint), i));
         }
@@ -832,6 +840,39 @@ fn dump_occupancy(ctx: usize) {
             .collect();
         trace_line("occupancy", "", &format!("row {y}"), &row);
     }
+}
+
+/// `placeholder_sizes w h weight` lines, closed by the list's total.
+unsafe extern "win64" fn on_placeholder_sizes(regs: *mut Registers, _: usize) {
+    let _guard = crate::hook_guard!("terrain_tools::on_placeholder_sizes");
+    if !on_generator_thread() {
+        return;
+    }
+    let list = unsafe { (*regs).rdi } as usize;
+    let (b, e) = (
+        read::<usize>(list).unwrap_or(0),
+        read::<usize>(list + 8).unwrap_or(0),
+    );
+    if e < b || (e - b) / 12 > 1000 {
+        return;
+    }
+    let entries: Vec<String> = (0..(e - b) / 12)
+        .map(|i| {
+            let c = b + i * 12;
+            format!(
+                "{}x{}:{}",
+                read::<i32>(c).unwrap_or(0),
+                read::<i32>(c + 4).unwrap_or(0),
+                read::<i32>(c + 8).unwrap_or(0)
+            )
+        })
+        .collect();
+    trace_line(
+        "placeholder_sizes",
+        "",
+        &entries.join(" "),
+        &format!("total {}", read::<i32>(list + 0x18).unwrap_or(0)),
+    );
 }
 
 /// `roomgrid row y`: the placeholder fill's room grid (`+0x28` width, `+0x2c` height, `+0x40`
