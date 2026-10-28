@@ -56,7 +56,7 @@ Tag `hook-v<version>` and the [Release hook](.github/workflows/release.yml) work
 ## Signature table
 
 The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: one table per build,
-`signatures/0.5.5e.toml` and `signatures/0.5.5e-hotfix1.toml` (115 signatures, 64 struct-offset fields each; the hotfix
+`signatures/0.5.5e.toml` and `signatures/0.5.5e.hotfix1.toml` (115 signatures, 64 struct-offset fields each; the hotfix
 table is the 0.5.5e one with moved addresses), is embedded at build time (`include_str!`, so a table can never be older
 or newer than the code it was made for), selected by the executable's PE timestamp and size (and checked with the build
 revision string, `323943` and `326410`), and resolved **once** when a DLL loads. A signature that matches zero or several times, or whose address holds

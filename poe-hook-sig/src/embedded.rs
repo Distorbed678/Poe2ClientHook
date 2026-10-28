@@ -6,8 +6,8 @@ use crate::{pe::PeInfo, table::Table};
 pub const TABLES: &[(&str, &str)] = &[
     ("0.5.5e", include_str!("../../signatures/0.5.5e.toml")),
     (
-        "0.5.5e-hotfix1",
-        include_str!("../../signatures/0.5.5e-hotfix1.toml"),
+        "0.5.5e.hotfix1",
+        include_str!("../../signatures/0.5.5e.hotfix1.toml"),
     ),
 ];
 
