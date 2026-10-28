@@ -128,6 +128,9 @@ const TDIFF_LINES_MAX: usize = 20_000;
 /// Site inside the placeholder fill `0x1420a6140` after the door type's size list lookup:
 /// `placeholder_sizes` lines (rdi = the list: begin, end, 12-byte entries w, h, weight; +0x18 total).
 const PLACEHOLDER_SIZES: &str = "placeholder_sizes";
+/// Site in the outer buffer's row strips (`0x141fd8360`), the fill branch `0x141fdbc74`:
+/// `strip_grounds` lines (row y `[rsp+0x40]`, walk limit `[rsp+0x44]`, grounds `[rbp+0x10]`, rbx).
+const STRIP_GROUNDS: &str = "strip_grounds";
 /// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
 const TILE_LOOKUP: &str = "tile_lookup";
 /// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
@@ -291,6 +294,7 @@ pub fn init(main: &Module, export: bool, trace: bool, batch: bool) -> Result<(),
             HookType::JmpBack(on_placeholder_sizes),
             0,
         ));
+        plan.push((addr(STRIP_GROUNDS)?, HookType::JmpBack(on_strip_grounds), 0));
         for (i, (sig, _)) in TILE_CHECKPOINTS.iter().enumerate() {
             plan.push((addr(sig)?, HookType::JmpBack(on_tile_checkpoint), i));
         }
@@ -840,6 +844,40 @@ fn dump_occupancy(ctx: usize) {
             .collect();
         trace_line("occupancy", "", &format!("row {y}"), &row);
     }
+}
+
+/// `strip_grounds y limit [rsp+0x48] [rsp+0x78]`, result the two grounds (file names).
+unsafe extern "win64" fn on_strip_grounds(regs: *mut Registers, _: usize) {
+    let _guard = crate::hook_guard!("terrain_tools::on_strip_grounds");
+    if !on_generator_thread() {
+        return;
+    }
+    let r = unsafe { &*regs };
+    let (rsp, rbp) = (r.rsp as usize, r.rbp as usize);
+    let name = |res: usize| {
+        if res == 0 {
+            "-".to_string()
+        } else {
+            resource_path(res)
+                .rsplit('/')
+                .next()
+                .unwrap_or("")
+                .to_string()
+        }
+    };
+    let g1 = read::<usize>(rbp + 0x10).unwrap_or(0);
+    trace_line(
+        "strip_grounds",
+        "",
+        &format!(
+            "{} {} {} {}",
+            read::<i32>(rsp + 0x40).unwrap_or(0),
+            read::<i32>(rsp + 0x44).unwrap_or(0),
+            read::<i32>(rsp + 0x48).unwrap_or(0),
+            read::<i32>(rsp + 0x78).unwrap_or(0)
+        ),
+        &format!("{} {}", name(g1), name(r.rbx as usize)),
+    );
 }
 
 /// `placeholder_sizes w h weight` lines, closed by the list's total.

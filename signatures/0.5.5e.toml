@@ -762,6 +762,16 @@ pdata = true
 ghidra = 0x141ff9280
 
 [[sig]]
+name = "strip_grounds"
+features = ["generator_trace"]
+kind = "site"
+anchor = "tdiff_outer_buffer"
+pattern = "48 39 5d 10 74 ?? 48 8d 55 ??"
+expect = "48 39 5d 10"
+ghidra = 0x141fdbc74
+note = "outer buffer row strips (0x141fd8360), the fill branch: [rsp+0x40] = row y, [rsp+0x44] = walk limit, [rbp+0x10] / rbx = the two grounds compared"
+
+[[sig]]
 name = "placeholder_sizes"
 features = ["generator_trace"]
 kind = "site"
