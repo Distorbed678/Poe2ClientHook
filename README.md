@@ -1,7 +1,7 @@
 # Poe2ClientHook
 
 The client side of [Poe2ModdingProject](https://github.com/Distorbed678/Poe2ModdingProject) (this repo is
-its submodule `modules/client-hook`): DLLs injected into **Path of Exile 2 client 0.5.5e** through the `version.dll`
+its submodule `modules/client-hook`): DLLs injected into **Path of Exile 2 client 0.5.5e and 0.5.5e Hotfix 1** through the `version.dll`
 proxy, and the host-side library that deploys and launches them.
 
 | Crate | Target | Role |
@@ -55,16 +55,17 @@ Tag `hook-v<version>` and the [Release hook](.github/workflows/release.yml) work
 
 ## Signature table
 
-The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: `signatures/0.5.5e.toml` (100 signatures, 64
-struct-offset fields) is embedded at build time (`include_str!`, so a table can never be older or newer than the code it
-was made for), selected by the executable's PE timestamp and size (and checked with the build revision string
-`323943`), and resolved **once** when a DLL loads. A signature that matches zero or several times, or whose address holds
+The DLLs have no fixed Ghidra addresses and no fixed struct offsets in code: one table per build,
+`signatures/0.5.5e.toml` and `signatures/0.5.5e-hotfix1.toml` (115 signatures, 64 struct-offset fields each; the hotfix
+table is the 0.5.5e one with moved addresses), is embedded at build time (`include_str!`, so a table can never be older
+or newer than the code it was made for), selected by the executable's PE timestamp and size (and checked with the build
+revision string, `323943` and `326410`), and resolved **once** when a DLL loads. A signature that matches zero or several times, or whose address holds
 other bytes, switches off the features that list it, with a log line naming it; nothing is hooked or patched on a guess,
 and on an unknown build with the read-only latch on only the observers start. Format, rules and the list of what is
 still literal: `docs/architecture/client-dll.md` in the main repository (section "Signature table").
 
 ```
-# resolve the embedded table against an exe file and compare with the 0.5.5e values
+# resolve the embedded table of the exe's build against an exe file and compare with the table's values
 cargo run --release -p poe-hook-sig --example resolve -- /path/to/PathOfExileSteam.exe [table.toml] [--quiet]
 cargo test -p poe-hook-sig        # unit tests; tests/real_exe.rs also runs on ../../GameFiles/PathOfExileSteam.exe (or $POE_EXE) if present
 ```

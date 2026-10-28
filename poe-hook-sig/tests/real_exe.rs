@@ -1,4 +1,4 @@
-//! The embedded signature table against the real game executable (client 0.5.5e).
+//! The embedded signature tables against the real game executable (the table of its build).
 //!
 //! The exe is not in the repository: the tests look for `$POE_EXE`, else
 //! `<repo>/GameFiles/PathOfExileSteam.exe` (this crate is `modules/client-hook/poe-hook-sig`
@@ -24,7 +24,7 @@ fn exe() -> Option<Vec<u8>> {
 }
 
 #[test]
-fn the_table_resolves_to_the_0_5_5e_addresses_and_offsets() {
+fn the_table_resolves_to_the_recorded_addresses_and_offsets() {
     let Some(file) = exe() else { return };
     let mapped = map_file(&file).unwrap();
     let image = Image::from_mapped(&mapped).unwrap();
@@ -75,7 +75,10 @@ fn a_mutated_executable_makes_the_affected_entries_fail() {
     let Some(file) = exe() else { return };
     let mut mapped = map_file(&file).unwrap();
     let tables = embedded::tables().unwrap();
-    let table = &tables[0];
+    let info = Image::from_mapped(&mapped).unwrap().info;
+    let (i, exact) = embedded::select(&tables, &info).unwrap();
+    assert!(exact, "the exe is not the build of an embedded table");
+    let table = &tables[i];
     let base = 0x1_4000_0000u64;
     // 1. The first byte of a function (client_platform_detect) and of a site.
     for (name, features_off) in [
