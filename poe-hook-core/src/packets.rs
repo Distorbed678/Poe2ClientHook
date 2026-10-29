@@ -1,20 +1,20 @@
 //! Packet capture: the plaintext of every login and instance message, read inside the client
 //! (no cipher is broken; the same code runs on our and on official servers).
 //!
-//! The functions and every struct offset named below are 0.5.5e values: the DLL finds them by
-//! signature (`signatures/0.5.5e.toml`: `read_message`, `packet_flush_plaintext`,
+//! The functions and every struct offset named below are 0.5.5e Hotfix 1 values: the DLL finds them by
+//! signature (`signatures/0.5.5e.hotfix1.toml`: `read_message`, `packet_flush_plaintext`,
 //! `session_send`, `*_session_loop`, `stream.*` fields) and does not start when one is missing.
 //!
-//! - **Received** (`READ_MESSAGE` `0x1421c5950(registry, stream)`): the game's message reader.
+//! - **Received** (`READ_MESSAGE` `0x1421c5b90(registry, stream)`): the game's message reader.
 //!   It reads the opcode from the stream's receive ring (decrypted on arrival), lets the
 //!   registered handlers deserialize the body, then advances the ring's read offset (+0x268,
 //!   ring at +0x298..+0x2a0) by exactly the message's size. The bytes between the old and new
-//!   offset are the message. The caller tells the channel: `0x1420e6bc0` login,
-//!   `0x142120b70` instance.
-//! - **Sent** (`FLUSH_PLAINTEXT` `0x142198037`, inside the stream flush `0x142197fc0`, after
+//!   offset are the message. The caller tells the channel: `0x1420e6d40` login,
+//!   `0x142120cf0` instance.
+//! - **Sent** (`FLUSH_PLAINTEXT` `0x142198187`, inside the stream flush `0x142198110`, after
 //!   its lock and before the cipher runs in place): the pending plaintext is
 //!   `[+0x280] + [+0x260 .. +0x258]` of the stream (rbx). Message boundaries come from the game
-//!   session send (`SESSION_SEND` `0x14211f880(session, packet)`, stream at session +0x20f8,
+//!   session send (`SESSION_SEND` `0x14211fa00(session, packet)`, stream at session +0x20f8,
 //!   opcode at packet +8), which records where each message starts and ends in the send
 //!   buffer; bytes outside recorded messages (login sends) are kept as one unframed chunk.
 //!
@@ -162,11 +162,11 @@ fn tables() -> &'static [(Channel, OpcodeTable); 2] {
         [
             (
                 Channel::Login,
-                parse("login", poe_proto::opcodes::v0_5_5e::LOGIN_TOML),
+                parse("login", poe_proto::opcodes::latest().login_toml),
             ),
             (
                 Channel::Instance,
-                parse("instance", poe_proto::opcodes::v0_5_5e::INSTANCE_TOML),
+                parse("instance", poe_proto::opcodes::latest().instance_toml),
             ),
         ]
     })

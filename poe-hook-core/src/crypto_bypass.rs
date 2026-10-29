@@ -2,7 +2,7 @@
 //!
 //! The official login handshake (client → `0x0002` ephemeral DH public key, server →
 //! `0x0002` public key + DSA signature) ends in the "verify and derive" routine (Ghidra
-//! `0x14219f010` in 0.5.5e, found by signature). It checks the server signature against GGG's key ("General
+//! `0x14219f160`, found by signature). It checks the server signature against GGG's key ("General
 //! Rhoa Failure #3"), runs a unified Diffie-Hellman agreement ("#1") and writes
 //! `SHA-512(agreed value)` into the session's 64-byte key buffer. The Salsa20 key and IVs
 //! are taken from that buffer.

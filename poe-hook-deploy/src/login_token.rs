@@ -11,7 +11,7 @@
 //! The file and key names are the best reading of the static RE and are parameters
 //! ([`LoginTokenFiles`]) until a first remember-me login has been seen on disk: the credentials
 //! name is `<config name>` (default `poe2_production`) + `_login.credentials` (string at
-//! Ghidra `0x14316a898`), and `config.json` can override it (`GGG_CREDENTIAL_FILE_NAME`).
+//! Ghidra `0x14316ab08`), and `config.json` can override it (`GGG_CREDENTIAL_FILE_NAME`).
 
 use std::path::{Path, PathBuf};
 

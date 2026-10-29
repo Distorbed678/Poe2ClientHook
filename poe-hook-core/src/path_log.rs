@@ -1,7 +1,7 @@
 //! Research aid (`[features] path_log` or `POE_HOOK_PATH_LOG=1`): logs every path the client
 //! plans for the local player, to compare a port of its pathfinder against the real one.
 //!
-//! Hooks the client's grid pathfinder (`0x141ed0390`, JPS-style search with an A* fallback,
+//! Hooks the client's grid pathfinder (`0x141ed0510`, JPS-style search with an A* fallback,
 //! [docs/re/pathfinding.md](../../../../docs/re/pathfinding.md) in the main repository), calls
 //! the original and logs its inputs and result as one `PATHPLAN` line. Read-only: the arguments
 //! and the result are passed through untouched.

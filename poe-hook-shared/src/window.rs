@@ -1,7 +1,7 @@
 //! Recognising the game's main window by class name (host-testable helpers).
 
 /// Window class the game registers for its main window (`RegisterClassW` in
-/// `FUN_141050a30`, string `POEWindowClass`). The standalone patcher uses `MainWindowClass`,
+/// `FUN_141050c30`, string `POEWindowClass`). The standalone patcher uses `MainWindowClass`,
 /// message boxes use the dialog class `#32770`.
 pub const GAME_WINDOW_CLASS: &str = "POEWindowClass";
 

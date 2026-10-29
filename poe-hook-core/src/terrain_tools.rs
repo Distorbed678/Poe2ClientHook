@@ -2,7 +2,7 @@
 //! memory, so it also runs on official servers (read-only).
 //!
 //! - **Area export** (`[features] area_export`): when the client's generator driver
-//!   (`0x141ffe940`) returns, the area is written to
+//!   (`0x141ffeac0`) returns, the area is written to
 //!   `<dump_dir>/terrain/area-exports/<session>/<n>_<hash16>_<seed>/` (without `dump_dir`:
 //!   `<session>/areas/<n>_<hash16>_<seed>/`):
 //!   `meta.txt`, `layout.tsv` (every tile record with the fields the tile hash covers, checked
@@ -14,7 +14,7 @@
 //!   (`probe.tsv`); a walkability layer is never 0 under the player.
 //! - **Generator trace** (`[features] generator_trace` or `POE_HOOK_GEN_TRACE`): every draw from
 //!   the terrain random number generator (MSVC `std::mt19937` in thread-local storage, seeded by
-//!   `0x141f9c020`; raw draws `0x140a58a70`, bounded draws `0x141f0d7f0`) and every generator
+//!   `0x141f9c1a0`; raw draws `0x140a58a70`, bounded draws `0x141f0d970`) and every generator
 //!   phase, in call order, as `generator_trace.tsv`. Diffing it against the server's port finds
 //!   the first divergence.
 
@@ -47,7 +47,7 @@ const UNIFORM: &str = "uniform_int";
 /// `TerrainRng_Below(n)` / `TerrainRng_Range(a, b)`: logged with their exact call site.
 const RNG_BELOW: &str = "rng_below";
 const RNG_RANGE: &str = "rng_range";
-/// Room pass (`0x141f8e6c0`), right after the tile-set lookup: rax = the candidate list
+/// Room pass (`0x141f8e840`), right after the tile-set lookup: rax = the candidate list
 /// (begin, end; 0x18-byte entries: tile resource, u8 orientation, i32 weight at +0x10; +0x18
 /// total weight). Logged in the generator trace.
 const ROOM_CANDIDATES: &str = "room_candidates";
@@ -57,28 +57,28 @@ const PLACE_TILE: &str = "place_tile";
 /// (0x38 bytes, +0 room resource); room data (+0x28) +0xe8 is a (w-1)×(h-1) grid of resource
 /// pointers at interior lattice points (pieces touching a set point are not re-picked).
 const DEREPEAT: &str = "derepeat";
-/// Graph node placement (`0x1420c87a0`: context, result out, node): the room or tile picked
+/// Graph node placement (`0x1420c8920`: context, result out, node): the room or tile picked
 /// for a room node and its position (result +0x70).
 const NODE_PLACE: &str = "node_place";
-/// Room/tile candidates of a node (`0x1420c76d0`: list out, node, room type, key, ..., ...):
+/// Room/tile candidates of a node (`0x1420c7850`: list out, node, room type, key, ..., ...):
 /// 0x68-byte entries (name view +0/+8, variant byte +0x10, size +0x31/+0x32, weight +0x60).
 const NODE_CANDIDATES: &str = "node_candidates";
-/// Edge routing (`0x1420cd460`: router, edge) → bool: the edge's ends (+0x20/+0x28 nodes,
+/// Edge routing (`0x1420cd5e0`: router, edge) → bool: the edge's ends (+0x20/+0x28 nodes,
 /// position +0x4c), end offsets (+0x70/+0x78) and internal points (+8..+0x10) afterwards.
 const ROUTE_EDGE: &str = "route_edge";
-/// `0x141f9d200(lattice ctx, &pos{i32 x, y}, key, wild)` -> 0 when the key fits the terrain, else
-/// a failure code; traced (`ofit` lines) for the overlay candidate scan (`0x141fa1830`).
+/// `0x141f9d380(lattice ctx, &pos{i32 x, y}, key, wild)` -> 0 when the key fits the terrain, else
+/// a failure code; traced (`ofit` lines) for the overlay candidate scan (`0x141fa19b0`).
 const ROOM_FITS: &str = "room_fits";
-/// Virtual-edge splitting (`0x1420bc400`: layout (+0x20 graph), ...): the graph afterwards.
+/// Virtual-edge splitting (`0x1420bc580`: layout (+0x20 graph), ...): the graph afterwards.
 const SPLIT_VIRTUAL: &str = "split_virtual";
-/// Edge smoothing after routing (`0x1420bd650`: layout, flag): the graph afterwards.
+/// Edge smoothing after routing (`0x1420bd7d0`: layout, flag): the graph afterwards.
 const SMOOTH_EDGES: &str = "smooth_edges";
-/// Arc at a virtual edge's start / end (`0x1420d1b70` / `0x1420d2470`: ctx, edge) and corner
-/// rounding (`0x1420b2f60`: ctx, edge, from end).
+/// Arc at a virtual edge's start / end (`0x1420d1cf0` / `0x1420d25f0`: ctx, edge) and corner
+/// rounding (`0x1420b30e0`: ctx, edge, from end).
 const ARC_START: &str = "arc_start";
 const ARC_END: &str = "arc_end";
 const ROUND_CORNERS: &str = "round_corners";
-/// Edge tile placement stage (`0x1420b6950`: layout ...): the graph on entry.
+/// Edge tile placement stage (`0x1420b6ad0`: layout ...): the graph on entry.
 const EDGE_TILES: &str = "edge_tiles";
 /// Steps between edge tiles and the fill pass that edit the corner lattice (ground index,
 /// height, flags per tile corner): snapshots before each (`lattice` trace lines).
@@ -90,7 +90,7 @@ const LATTICE_STEPS: &[(&str, &str, usize)] = &[
     ("lattice_bdae0", "bdae0", 0x28),
     ("lattice_be360", "be360", 0x28),
     ("lattice_fill", "fill", 0x8),
-    // Per-tile height levelling of the outer fill (`0x141fd71c0`, once per fixed cell and round):
+    // Per-tile height levelling of the outer fill (`0x141fd7340`, once per fixed cell and round):
     // dumped only when the lattice changed since the previous dump.
     ("lattice_round", "round", 0x8),
 ];
@@ -98,15 +98,15 @@ const LATTICE_STEPS: &[(&str, &str, usize)] = &[
 /// once more (`afterround`), the state the levelling rounds left.
 static ROUND_ARMED: AtomicBool = AtomicBool::new(false);
 static ROUND_HASH: AtomicU64 = AtomicU64::new(0);
-/// Site inside the levelling step `0x141fd71c0` (after its corner-set call): `round_corner` lines.
+/// Site inside the levelling step `0x141fd7340` (after its corner-set call): `round_corner` lines.
 const ROUND_CORNER: &str = "round_corner";
 /// Tile-map checkpoints (`tdiff` lines): at each function's entry, the tile records that changed
 /// since the previous checkpoint (or phase), so the next checkpoint shows what a pass did:
-/// graph pipeline `0x141ff05f0`, post-layout stage `0x141ff7a10`, outer fill `0x141fd5ff0`,
-/// outer buffer `0x141fd8360`, grid passes `0x141fe0fd0` / `0x141fe0ea0`, overlay candidate scan
-/// `0x141fa23e0` (also dumps its occupancy grid: `occupancy` lines), placeholder fill `0x1420a6140` (also dumps its room grid: `roomgrid` lines),
-/// pre-unique room `0x14209c150` (also lists its ground-only cells: `preunique_cells`), topology
-/// choice `0x141ff9280` (also lists the world-map pins at generator `+0x280`: `map_pins`).
+/// graph pipeline `0x141ff0770`, post-layout stage `0x141ff7b90`, outer fill `0x141fd6170`,
+/// outer buffer `0x141fd84e0`, grid passes `0x141fe1150` / `0x141fe1020`, overlay candidate scan
+/// `0x141fa2560` (also dumps its occupancy grid: `occupancy` lines), placeholder fill `0x1420a62c0` (also dumps its room grid: `roomgrid` lines),
+/// pre-unique room `0x14209c2d0` (also lists its ground-only cells: `preunique_cells`), topology
+/// choice `0x141ff9400` (also lists the world-map pins at generator `+0x280`: `map_pins`).
 const TILE_CHECKPOINTS: &[(&str, &str)] = &[
     ("tdiff_graph", "graph"),
     ("tdiff_post", "post"),
@@ -125,20 +125,20 @@ static TILE_MAP: AtomicUsize = AtomicUsize::new(0);
 type TileState = (usize, i16, u8, u8, u8);
 static TILE_SNAP: Mutex<Vec<TileState>> = Mutex::new(Vec::new());
 const TDIFF_LINES_MAX: usize = 20_000;
-/// Site inside the placeholder fill `0x1420a6140` after the door type's size list lookup:
+/// Site inside the placeholder fill `0x1420a62c0` after the door type's size list lookup:
 /// `placeholder_sizes` lines (rdi = the list: begin, end, 12-byte entries w, h, weight; +0x18 total).
 const PLACEHOLDER_SIZES: &str = "placeholder_sizes";
-/// Site in the outer buffer's row strips (`0x141fd8360`), the fill branch `0x141fdbc74`:
+/// Site in the outer buffer's row strips (`0x141fd84e0`), the fill branch `0x141fdbdf4`:
 /// `strip_grounds` lines (row y `[rsp+0x40]`, walk limit `[rsp+0x44]`, grounds `[rbp+0x10]`, rbx).
 const STRIP_GROUNDS: &str = "strip_grounds";
-/// Tile set lookup by key (`0x141d0a4c0(tile set, key, feature)`), traced for edge tiles.
+/// Tile set lookup by key (`0x141d0a640(tile set, key, feature)`), traced for edge tiles.
 const TILE_LOOKUP: &str = "tile_lookup";
-/// Edge-tile path crossings `0x1420b7490(_, out, &tiles, size)`: logs the path's tile list.
+/// Edge-tile path crossings `0x1420b7610(_, out, &tiles, size)`: logs the path's tile list.
 const PATH_CROSSINGS: &str = "path_crossings";
 /// Generator vfunc +0x38: adds a created object (doodad or tile entity) to the world:
 /// `(generator, entity, region)`.
 const ADD_OBJECT: &str = "terrain_add_object";
-/// Inside the per-tile doodad pass (`0x141ff3310`), right after the doodad's path hash: eax =
+/// Inside the per-tile doodad pass (`0x141ff3490`), right after the doodad's path hash: eax =
 /// path hash, [rsp+0x70]/[rsp+0x74] = placed x/y (cells), [rsp+0x84] = angle, r15 = the tile's
 /// doodad entry (+0x38: the art resource). The doodad hash is the wrapping sum of
 /// `y + path hash + (x << 16)` over these.
@@ -689,7 +689,7 @@ fn dump_lattice(name: &str, view: usize, on_change: bool) {
 
 /// A tile key (`0x4e` bytes): edges[4], size, grounds[4] (at +0x22), heights, exits and
 /// virtual exits (4 bytes each from +0x42).
-/// `round_corner x y n h0..h3 cell`: one tile-levelling step of the outer fill (`0x141fd71c0`):
+/// `round_corner x y n h0..h3 cell`: one tile-levelling step of the outer fill (`0x141fd7340`):
 /// the cell, the set corner heights of its tile, and the cell's current height (i16 at cell + 0x30).
 unsafe extern "win64" fn on_round_corner(regs: *mut Registers, _: usize) {
     let _guard = crate::hook_guard!("terrain_tools::on_round_corner");
@@ -826,7 +826,7 @@ unsafe extern "win64" fn on_tile_checkpoint(regs: *mut Registers, index: usize) 
 }
 
 /// `occupancy row y`: the overlay scan's occupancy bytes (ctx `+0x20` stride, `+0x28` rows,
-/// `+0x30` data; bit 0 = taken; the fit test `0x141fa1830` rejects a cell with any bit outside
+/// `+0x30` data; bit 0 = taken; the fit test `0x141fa19b0` rejects a cell with any bit outside
 /// the candidate's mask), as hex digits.
 fn dump_occupancy(ctx: usize) {
     let (w, h, data) = (
@@ -1382,7 +1382,7 @@ unsafe extern "win64" fn on_edge_tiles(regs: *mut Registers, _: usize) {
         return;
     }
     let r = unsafe { &*regs };
-    // `0x1420b6950(&state)`: state +0x30 is the layout (its +0x20 the graph).
+    // `0x1420b6ad0(&state)`: state +0x30 is the layout (its +0x20 the graph).
     let layout = read::<usize>(r.rcx as usize + 0x30).unwrap_or(0);
     dump_graph(
         "graph_before_tiles",
@@ -1394,8 +1394,8 @@ static GRID_DUMPED: AtomicBool = AtomicBool::new(false);
 
 type RoomFitsFn = unsafe extern "win64" fn(usize, usize, usize, usize) -> usize;
 
-/// `ofit x y w h flags code`: the overlay candidate scan's calls of `0x141f9d200` (callers
-/// inside `0x141fa1830` only; the code is the port's `room_fits` result).
+/// `ofit x y w h flags code`: the overlay candidate scan's calls of `0x141f9d380` (callers
+/// inside `0x141fa19b0` only; the code is the port's `room_fits` result).
 unsafe extern "win64" fn on_room_fits(regs: *mut Registers, original: usize, _: usize) -> usize {
     let mut guard = crate::hook_guard!("terrain_tools::on_room_fits");
     let r = unsafe { &*regs };
@@ -1607,7 +1607,7 @@ pub fn hash_utf16(units: &[u16], seed: u32) -> u32 {
     finish(h)
 }
 
-/// MurmurHash2 over bytes (`0x142194f90`).
+/// MurmurHash2 over bytes (`0x1421950e0`).
 pub fn hash_bytes(data: &[u8], seed: u32) -> u32 {
     let mut h = data.len() as u32 ^ seed;
     let mut chunks = data.chunks_exact(4);
@@ -1627,7 +1627,7 @@ pub fn hash_bytes(data: &[u8], seed: u32) -> u32 {
     finish(h)
 }
 
-/// One tile's contribution to the tile hash (`0x141d141d0`).
+/// One tile's contribution to the tile hash (`0x141d14350`).
 fn tile_hash_entry(x: u32, y: u32, height: i16, orientation: u8, path_hash: u32) -> u32 {
     let mut h = (mix(height as i32 as u32) ^ 0x9bfb_c07e).wrapping_mul(M);
     h = (mix(orientation as u32) ^ h).wrapping_mul(M);

@@ -28,7 +28,7 @@ A failed run can be re-run from the Actions page; if the release exists the file
 
 ## The package
 
-`poe-hook-v<version>-game-<game versions>-windows-x86_64.zip`, with `.sha256` (the line `sha256sum` prints, so `sha256sum -c` verifies it) next to it. The game versions are the `signatures/<game version>.toml` tables shipped, joined with `_` (`game-0.5.5e`, later `game-0.5.5e_0.6.0`). The DLLs are Windows binaries whatever system the game is played on, hence no other platform.
+`poe-hook-v<version>-game-<game versions>-windows-x86_64.zip`, with `.sha256` (the line `sha256sum` prints, so `sha256sum -c` verifies it) next to it. The game versions are the `signatures/<game version>.toml` tables shipped, joined with `_` (`game-0.5.5e.hotfix1`, later e.g. `game-0.5.5e.hotfix1_0.6.0`). The DLLs are Windows binaries whatever system the game is played on, hence no other platform.
 
 One top folder `poe-hook-v<version>-game-<...>-windows-x86_64/` with:
 
@@ -45,9 +45,9 @@ One top folder `poe-hook-v<version>-game-<...>-windows-x86_64/` with:
 ```json
 {
   "schema": 1,
-  "name": "poe-hook-v0.2.0-game-0.5.5e-windows-x86_64",
+  "name": "poe-hook-v0.5.0-game-0.5.5e.hotfix1-windows-x86_64",
   "hook_version": "0.2.0",
-  "game_versions": ["0.5.5e"],
+  "game_versions": ["0.5.5e.hotfix1"],
   "mod_abi": 1,
   "platform": "windows",
   "arch": "x86_64",

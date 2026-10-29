@@ -1,7 +1,7 @@
 //! Vulkan hooks for the overlay.
 //!
 //! The game loads `vulkan-1.dll` itself and resolves every function through
-//! `vkGetInstanceProcAddr` / `vkGetDeviceProcAddr` (Ghidra `0x1410262d0`). Both exports are
+//! `vkGetInstanceProcAddr` / `vkGetDeviceProcAddr` (Ghidra `0x1410264d0`). Both exports are
 //! redirected in the DLL's export table; when the game asks for one of the functions below, it gets our wrapper,
 //! which records what the core needs (instance, device, queues, window, swapchain) and calls
 //! the real function. `vkQueuePresentKHR` lets the core draw the overlay into the image just

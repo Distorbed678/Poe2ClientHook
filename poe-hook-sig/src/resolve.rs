@@ -128,7 +128,7 @@ pub struct SigResolved {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct FieldResolved {
     pub value: u64,
-    /// The table's 0.5.5e value, when it differs from this build's.
+    /// The table's value, when it differs from this build's.
     pub changed_from: Option<u64>,
 }
 

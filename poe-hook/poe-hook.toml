@@ -6,7 +6,7 @@
 # tables): <dump_dir>/terrain/{grids,layouts,area-exports/<session>}, <dump_dir>/client-tables.
 # Set by `cargo xtask deploy-client` to <repo>/dumps/<version> as a Windows path (the client runs
 # under Wine: `Z:` is `/`). Unset: next to the exe / in the session folder.
-# dump_dir = 'Z:\home\user\Poe2ModdingProject\dumps\0.5.5e'
+# dump_dir = 'Z:\home\user\Poe2ModdingProject\dumps\0.5.5e.hotfix1'
 
 # private: our server (crypto bypass, external connections refused).
 # official: official servers, read-only: the DLL only observes and logs; nothing is sent,
@@ -92,7 +92,7 @@ auto = true
 # POE_HOOK_GEN_BATCH_THREADS=<n>), not here.
 enabled = false
 # Run directory (a path the game process can open, Z:\... under Proton): jobs.txt in, batch-results.tsv out.
-# dir = 'Z:\home\you\poe2\dumps\0.5.5e\terrain\batch\run1'
+# dir = 'Z:\home\you\poe2\dumps\0.5.5e.hotfix1\terrain\batch\run1'
 threads = 4
 # Seconds after the core starts before the first job.
 start_delay_seconds = 20

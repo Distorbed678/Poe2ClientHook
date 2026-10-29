@@ -31,7 +31,7 @@ fn sample_mod_is_planned_when_enabled_and_not_in_official_mode() {
     )
     .unwrap();
 
-    let p = plan(t.path(), false, false, Some("0.5.5e"));
+    let p = plan(t.path(), false, false, Some("0.5.5e.hotfix1"));
     assert_eq!(p.mods.len(), 1, "{:?}", p.skipped);
     assert_eq!(
         p.mods[0].dll.as_deref(),
@@ -39,6 +39,6 @@ fn sample_mod_is_planned_when_enabled_and_not_in_official_mode() {
     );
     assert!(p.mods[0].warnings.is_empty());
 
-    let official = plan(t.path(), true, false, Some("0.5.5e"));
+    let official = plan(t.path(), true, false, Some("0.5.5e.hotfix1"));
     assert!(official.mods.is_empty() && official.refused.is_some());
 }

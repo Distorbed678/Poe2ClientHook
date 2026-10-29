@@ -10,7 +10,7 @@ authors = ["Poe2ClientHook"]
 license = "MIT"
 
 [game]
-versions = ["0.5.5e"]
+versions = ["0.5.5e.hotfix1"]
 # The mod ABI this mod was built against (poe_hook_mod_api::HOOK_API_VERSION).
 hook_api = 1
 

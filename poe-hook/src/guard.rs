@@ -9,7 +9,7 @@
 //!   sends, alters and injects nothing; it only observes. Trusted connections never latch;
 //! - record every connection (the core's packet capture and position sync use the table).
 //!
-//! Hooked: `connect`, `WSAConnect` (what 0.5.5e uses: `connect`, docs/re/network-apis.md),
+//! Hooked: `connect`, `WSAConnect` (what the client uses: `connect`, docs/re/network-apis.md),
 //! `WSAConnectByNameW/A`, `WSAConnectByList`, and `WSAIoctl`, whose
 //! `SIO_GET_EXTENSION_FUNCTION_POINTER` answer for `ConnectEx` is wrapped by hooking the
 //! returned function (if that hook cannot be installed the ioctl is failed instead, unless

@@ -1,6 +1,6 @@
 //! Read-only views of game objects for the inspector tabs (guarded reads only).
 //!
-//! Offsets (0.5.5e, see docs/re/addresses-0.5.5e.md): entity +0x10 components
+//! Offsets (see docs/re/addresses.md): entity +0x10 components
 //! (0 = Positioned, 9 = Actor), +0x88 id. Positioned +0x444/+0x448 grid cell, +0x44c facing,
 //! +0x1e5 bit 1 facing locked, +0x490/+0x494 world position. Actor +0x238/+0x240 current
 //! actions (type at +0x120), +0x400/+0x404 WASD direction, +0x2a2 bit 5 sprint held.
@@ -87,7 +87,7 @@ pub fn player_text() -> String {
 /// The player's stats: (key, value) of each stat set; set 0 is the entity's own stats.
 /// Stats component (by name) +0x1c8 → set 0 container, other sets in the 16-byte entry list
 /// +0x1e8..+0x1f0 (container +0xd8 = set id). A container holds a sorted array of
-/// `(i32 key, i32 value)` at +0xf8..+0x100 (setter `0x1426ac920`, handler `0x142181f20`).
+/// `(i32 key, i32 value)` at +0xf8..+0x100 (setter `0x1426acb60`, handler `0x1421820a0`).
 pub fn player_stats() -> Vec<(u32, Vec<(u32, i32)>)> {
     let entity = crate::dump_types::player();
     if entity == 0 {

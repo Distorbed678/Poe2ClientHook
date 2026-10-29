@@ -320,7 +320,7 @@ mod tests {
         write_mod(t.path(), "alpha", API, Some("a.dll"));
         write_mod(t.path(), "off-mod", API, Some("o.dll"));
         enable(t.path(), &["zeta", "alpha"]);
-        let p = plan(t.path(), false, false, Some("0.5.5e"));
+        let p = plan(t.path(), false, false, Some("0.5.5e.hotfix1"));
         // The state file is the order, not the id.
         assert_eq!(ids(&p), ["zeta", "alpha"]);
         assert!(p.skipped.is_empty() && p.refused.is_none());
@@ -357,7 +357,7 @@ mod tests {
         let t = tempfile::tempdir().unwrap();
         write_mod(t.path(), "alpha", API, Some("a.dll"));
         enable(t.path(), &["alpha"]);
-        let p = plan(t.path(), true, false, Some("0.5.5e"));
+        let p = plan(t.path(), true, false, Some("0.5.5e.hotfix1"));
         assert!(p.mods.is_empty() && p.skipped.is_empty());
         assert!(p.refused.as_deref().unwrap().contains("official"));
         // Same answer when the directory does not exist (nothing was read to decide).
@@ -466,7 +466,7 @@ mod tests {
             Some("o.dll"),
         );
         enable(t.path(), &["old-mod"]);
-        let p = plan(t.path(), false, false, Some("0.5.5e"));
+        let p = plan(t.path(), false, false, Some("0.5.5e.hotfix1"));
         assert_eq!(ids(&p), ["old-mod"]);
         let w = p.mods[0].warnings.join("\n");
         assert!(w.contains("made for client 0.4.0"), "{w}");

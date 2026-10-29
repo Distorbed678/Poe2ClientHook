@@ -50,7 +50,7 @@ homepage = "https://example.invalid/my-mod"
 [game]
 # Exact client versions the mod is known to work with. The launcher refuses to enable the mod
 # on others unless the user overrides; the loader only logs a warning (when the build is known).
-versions = ["0.5.5e"]
+versions = ["0.5.5e.hotfix1"]
 # The mod ABI the mod was built against (see "The mod ABI"). A mod with an entry DLL must state it; the
 # loader loads it only when it equals its own `HOOK_API_VERSION`.
 hook_api = 1
@@ -227,7 +227,7 @@ client off: every failure is logged and the mod is skipped.
 Log lines (in `poe-hook.log`, target `poe_hook::mods`; a mod's own lines carry the target `mod:<id>`):
 
 ```
-mods: signature table 0.5.5e resolved in 190 ms (verified build)
+mods: signature table 0.5.5e.hotfix1 resolved in 190 ms (verified build)
 mods: loaded sample-mod 0.1.0 (3 ms)
 mods: skipped some-mod: built for mod ABI 2, this loader offers 1 (update poe-hook)
 mods: skipped srv-mod: server-only mod (side = "server"): it has no client half, install it into the server's mods folder
@@ -261,7 +261,7 @@ the DLL is mapped; the optional export `poe_mod_abi_version` is checked right af
 | `abi_version: u32`, `size: u32` | the loader's `HOOK_API_VERSION` and `size_of::<HookApi>()` |
 | `ctx: *const c_void` | pass as the first argument of `log` |
 | `mod_id`, `mod_dir`, `exe_dir`: `Str` | the mod's id, its folder, the game folder |
-| `game_version`, `build_revision`: `Str` | `0.5.5e` and `323943` of the signature table that matched (empty: no usable table) |
+| `game_version`, `build_revision`: `Str` | `0.5.5e.hotfix1` and `326410` of the signature table that matched (empty: no usable table) |
 | `build_verified: u32` | 1: the exe is exactly the build the table was made for; 0: unknown build, addresses are candidates only |
 | `log(ctx, level, message: Str)` | one record in `poe-hook.log` and the overlay's Log tab, target `mod:<id>`; `level` 1..5 = error..trace |
 | `read_only() -> bool` | the read-only latch |
@@ -287,7 +287,7 @@ a signature through this ABI. `cargo xtask build-dll` builds it with the DLLs; `
 logs, for example:
 
 ```
-[mod:sample-mod] hello from sample-mod 0.1.0: game build 0.5.5e (revision 323943, table verified), read_only=false
+[mod:sample-mod] hello from sample-mod 0.1.0: game build 0.5.5e.hotfix1 (revision 326410, table verified), read_only=false
 ```
 
 ## Tests

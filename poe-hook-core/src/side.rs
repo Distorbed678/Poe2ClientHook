@@ -2,7 +2,7 @@
 //! the sealed UDP frames of the position reports and the debug link, and the terrain upload.
 //!
 //! The keys come from the instance session's 64-byte key material, which the game passes to
-//! `0x14212aa90` (the packet-cipher builder of the instance `EnableEncryption` handler, with
+//! `0x14212ac10` (the packet-cipher builder of the instance `EnableEncryption` handler, with
 //! `InstanceDetails + 0x38` in `rdx`). The hook below copies it, derives the session keys
 //! (`poe_hook_shared::sidechannel`, the same code the server runs) and never logs it. Every
 //! new instance connection brings new material, hence a new session.

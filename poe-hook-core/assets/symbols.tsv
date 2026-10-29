@@ -24,563 +24,563 @@
 140e7ca80	league banners at character creation (entries with +0xe0 bit 7, not variants; va
 140ec82e0	create screen: connects to the login connection's signals (+0xb08 → 0x140ed2ab0,
 140ece3e0	create screen Continue/Create button (needs a selected league: +0x320, +0x318)
-140ece810	sends CreateCharacter (0x1420e9b60); do not hook its entry, the trace hook crash
+140ece810	sends CreateCharacter (0x1420e9ce0); do not hook its entry, the trace hook crash
 140ecee50	"character_creation_done": finds the new character by name (0x140ec8b20), sends 
 140ecf5d0	create screen per-frame update: scene done with +0x390 and +0x392 → 0x140ecee50
 140ed2ab0	create result callback (u16 result): 0 → +0x392, creation scene (0x140ececc0, se
 140ed4e50	create screen key handler (Space skips the creation scene)
 140ed8710	delete-character screen result callback
 140ee79c0	gateway list loader
-14101d290	`scalar_deleting_destructor'
-1410262d0	Vulkan loader
-14103c1b0	`scalar_deleting_destructor'
-14119e930	`scalar_deleting_destructor'
-1411ac0a0	`scalar_deleting_destructor'
-1411ac680	`scalar_deleting_destructor'
-1411c11e0	`scalar_deleting_destructor'
-1411ca200	`scalar_deleting_destructor'
-141242e70	`scalar_deleting_destructor'
-141299fb0	`scalar_deleting_destructor'
-1412c49c0	`scalar_deleting_destructor'
-141303d10	`scalar_deleting_destructor'
-141318290	`scalar_deleting_destructor'
-141328350	`scalar_deleting_destructor'
-14133eba0	`scalar_deleting_destructor'
-141340240	`scalar_deleting_destructor'
-141388850	tls_callback_1
-1413c2550	`scalar_deleting_destructor'
-1414085d0	`scalar_deleting_destructor'
-141408780	`scalar_deleting_destructor'
-141416cc0	`scalar_deleting_destructor'
-14160bcc0	`scalar_deleting_destructor'
-1416a9810	Render: apply visibility to the AO scene node (+0x39a disabled flag)
-1418a2030	`scalar_deleting_destructor'
-141923f80	GEAL EnableRendering lambda body
-141939e40	[NETWORKING] networking_type option reader
-1419dd9a0	`scalar_deleting_destructor'
-141aa90d0	dodge_roll_travel_distance getter
-141b76c20	end of a dodge roll: decides whether it carries on as a sprint
-141b7a9c0	`scalar_deleting_destructor'
-141b8dad0	`scalar_deleting_destructor'
-141d24510	`scalar_deleting_destructor'
-141d439e0	animation controller: play animation (index, …)
-141d5ce90	`scalar_deleting_destructor'
-141dcce20	movement speed getter (base × movement_velocity_+permyriad × virtual_action_spee
-141dcd020	Pathfinding component constructor (+0x550 base speed, +0x55c multiplier)
-141dd8820	Positioned initial data (facing +0x44c, flags0 bit 7 → lock)
-141dda640	Positioned simulation handler: 0x1dd/0x1de position, **0x1df SetOrientation (f32
-141ddb570	SetLocationForcedNoCallbacks (moves an entity to a cell)
-141ddc6a0	Positioned::SetOrientation(angle): writes +0x44c (radians, atan2(dy, dx) + π/2) 
-141de3020	movement step: turns the entity toward its path (orientation mode +0x1e3 or the 
-141dfa320	StateMachine reader (shared-state count check)
-141e4de20	movement reset / stat listener: stops Move when Actor +0x2a1 bit 2 is set
-141e4f9c0	start WASD walking: a Move action (skill 0x20002909) toward cell + input vector
-141e534b0	Actor RecalculateStance ("Aiming", "AimingUpwards", "Ranged", "Mounted", "Unarme
-141e5d490	Actor "is sprinting": Actor +0x915 or the stat is_sprinting
-141e72880	object registry insert ("Replacing awake/asleep/deleted object")
-141e89130	create an action from an actor skill
-141f37cd0	`scalar_deleting_destructor'
-141f37f00	`scalar_deleting_destructor'
-141f3ca80	`scalar_deleting_destructor'
-141f3e440	`scalar_deleting_destructor'
-141f3e690	`scalar_deleting_destructor'
-141f3f650	`scalar_deleting_destructor'
-141f3ff90	`scalar_deleting_destructor'
-141f436a0	`scalar_deleting_destructor'
-141f44e90	`scalar_deleting_destructor'
-141f455a0	`scalar_deleting_destructor'
-141f45aa0	`scalar_deleting_destructor'
-141f46730	`scalar_deleting_destructor'
-141f46fe0	`scalar_deleting_destructor'
-141f47430	`scalar_deleting_destructor'
-141f479b0	0x355 serializer: u8, u16 len, bytes
-141f47f90	`scalar_deleting_destructor'
-141f483e0	`scalar_deleting_destructor'
-141f68e70	`scalar_deleting_destructor'
-141f68f70	`scalar_deleting_destructor'
-141f69430	`scalar_deleting_destructor'
-141f696b0	S→C 0x1c8 StartAction reader
-141f6af00	0x1df reader
-141f6b0e0	S→C 0x64 MoveDirectionUpdate reader
-1420e32e0	`scalar_deleting_destructor'
-1420e34b0	`scalar_deleting_destructor'
-1420e3730	`scalar_deleting_destructor'
-1420e3eb0	`scalar_deleting_destructor'
-1420e40d0	`scalar_deleting_destructor'
-1420e6bc0	login session receive loop
-1420e8193	login packet dispatcher switch (ClientLoginSession?), opcodes 0x02–0x47; opcode 
-1420e81a5	login dispatch switch (opcode − 2; byte table 0x1420e9954, targets 0x1420e98e4);
-1420ebcb0	`scalar_deleting_destructor'
-1420edaa0	InitialState CharacterState flags → local player (+0x3eca..+0x3ede)
-142102c20	loader for server-delivered encrypted code modules
-14210ee60	chat sender (0x16, wstring; "@whisper")
-14210f920	C→S 0x1a5 UseSkill sender (vtable 0x1434e5b40, body 0x141ecdd00); 0x1a7..0x1ad s
-14210fbb0	skill target update sender: 0x1a8 (lockstep, relative), 0x1a9 (absolute), 0x1aa 
-14211dbb0	instance server connect
-14211f540	logout routine ("FourLogOut"): 0 / 2 = exit to login / game, 1 = exit to charact
-14211f880	game-session send (packet->vtable[1](packet, stream)); senders build the packet 
-14211fad0	sends 0x355 ExitReport (once per session)
-142120b70	instance session receive loop
-1421211e4	0x1c frame report sender; 0x141f486f0 its serializer
-14212eb60	world constructor (+0x661 frame mode; in-game world created with 2 by 0x14100b7e
-14212fc10	world start (InitialState vfunc +0x1f0): applies all queued packets
-1421301e0	flush packets scheduled at the current (entity, component, sequence) position
-1421302c0	lockstep frame playback: speed factor world +0x670 (1.01× with 1 spare frame, 1.
-1421306c0	world frame drain (world, f32 dt): applies queued simulation packets, updates en
-1421340e0	simulation packet queue (0x2f4 frame marker, 0x2f5 → world vfunc +0x178)
-1421370f0	frame-mode entity update loop (component vfunc +0x50, then 0x141e7d7f0)
-142149640	Actor component simulation handler: 0x64 WASD, 0x65, 0x1c8 start action, 0x1c9..
-14214a2ea	Actor 0x1cc (u16 action id, u8) → Actor vfunc +0x130 (end action?)
-14214a400	Actor 0x1fc (f32, u16) → Actor vfunc +0x100
-14214d910	`scalar_deleting_destructor'
-14214e4f0	`scalar_deleting_destructor'
-14214e990	`scalar_deleting_destructor'
-14214eea0	`scalar_deleting_destructor'
-14214f180	`scalar_deleting_destructor'
-14214fa20	`scalar_deleting_destructor'
-14214fa60	login incoming-packet factory (opcode → class); 0x13 CharacterCreated class 0x14
-142150f90	`scalar_deleting_destructor'
-1421515f0	`scalar_deleting_destructor'
-142152120	`scalar_deleting_destructor'
-142153980	`scalar_deleting_destructor'
-142154200	`scalar_deleting_destructor'
-142155950	`scalar_deleting_destructor'
-142155cc0	`scalar_deleting_destructor'
-142156bf0	`scalar_deleting_destructor'
-1421572f0	`scalar_deleting_destructor'
-142157660	`scalar_deleting_destructor'
-142157c20	`scalar_deleting_destructor'
-142158870	`scalar_deleting_destructor'
-14215a7f0	`scalar_deleting_destructor'
-14215b720	`scalar_deleting_destructor'
-14215b8f0	`scalar_deleting_destructor'
-14215bba0	`scalar_deleting_destructor'
-14215c950	`scalar_deleting_destructor'
-14215dc60	`scalar_deleting_destructor'
-14215e420	`scalar_deleting_destructor'
-1421628f0	`scalar_deleting_destructor'
-142164e90	`scalar_deleting_destructor'
-142165d50	`scalar_deleting_destructor'
-1421664d0	`scalar_deleting_destructor'
-142166950	`scalar_deleting_destructor'
-142168c30	`scalar_deleting_destructor'
-142169590	`scalar_deleting_destructor'
-14216a5f0	`scalar_deleting_destructor'
-14216b850	`scalar_deleting_destructor'
-14216c080	`scalar_deleting_destructor'
-14216c410	`scalar_deleting_destructor'
-14216c930	`scalar_deleting_destructor'
-14216d2f0	`scalar_deleting_destructor'
-14216dce0	`scalar_deleting_destructor'
-14216e290	`scalar_deleting_destructor'
-14216fed0	`scalar_deleting_destructor'
-142170320	`scalar_deleting_destructor'
-142181f20	Stats component message handler
-1421842a0	S→C 0x1fe SetPause reader; applied via world vfunc +0x200 0x14168aaf0
-142184650	`scalar_deleting_destructor'
-1421851d0	`scalar_deleting_destructor'
-142186050	`scalar_deleting_destructor'
-14218a850	Actor skill container reader; 0x14218afb0 skill list; 0x142188bd0 one skill
-142197d30	stream read (stream, dst, len)
-142197e60	stream write (stream, src, len)
-142197fc0	stream flush (stream, err, force)
-142198037	inside the stream flush
-142198530	installs a cipher on a Tcpstream
-14219dc40	crypto session constructor (DH groups, DSA key, "#2")
-14219ee40	crypto: DH2 agree + SHA-512 → 64-byte key material ("#1")
-14219f010	crypto: verify server signature + derive keys ("General Rhoa Failure #3")
-14219f3b0	builds the two-direction Salsa20 cipher from the key material
-1421a4140	`scalar_deleting_destructor'
-1421c50b0	HNC bit queue: key material XOR table 0x142f10960 + swaps, Salsa20 pair
-1421c5360	HNC incoming byte parser ("HNC Protocol Violated")
-1421c5950	message reader (registry, stream)
-1426ac920	stat container set (container, key, value)
-1426f2220	GEAL script interpreter loop
-142756110	`scalar_deleting_destructor'
-142756150	`scalar_deleting_destructor'
-142763920	`scalar_deleting_destructor'
-142769210	`scalar_deleting_destructor'
-14284dfe0	`scalar_deleting_destructor'
-14284e020	`scalar_deleting_destructor'
-14284e100	`scalar_deleting_destructor'
-14286e3f0	`scalar_deleting_destructor'
-142b030b0	Crypto++ Salsa20 key setup
-142b2961c	DelayLoad_FMOD_Memory_Initialize
-142b29628	DelayLoad_?createStream@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEBDIPEAUFMOD_CREATESOUNDEXINFO@@PEAPEAVSound@2@@Z
-142b29634	DelayLoad_?setCallback@System@FMOD@@QEAA?AW4FMOD_RESULT@@P6A?AW43@PEAUFMOD_SYSTEM@@IPEAX11@ZI@Z
-142b29640	DelayLoad_?setAdvancedSettings@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_ADVANCEDSETTINGS@@@Z
-142b2964c	DelayLoad_?setSoftwareChannels@System@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
-142b29658	DelayLoad_?getDriver@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAH@Z
-142b29664	DelayLoad_?setDriver@System@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
-142b29670	DelayLoad_?getDriverInfo@System@FMOD@@QEAA?AW4FMOD_RESULT@@HPEADHPEAUFMOD_GUID@@PEAHPEAW4FMOD_SPEAKERMODE@@2@Z
-142b2967c	DelayLoad_?getNumDrivers@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAH@Z
-142b29688	DelayLoad_?getLength@Sound@FMOD@@QEAA?AW4FMOD_RESULT@@PEAII@Z
-142b29694	DelayLoad_?release@Sound@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b296a0	DelayLoad_?getDSP@ChannelControl@FMOD@@QEAA?AW4FMOD_RESULT@@HPEAPEAVDSP@2@@Z
-142b296ac	DelayLoad_?getMeteringInfo@DSP@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_DSP_METERING_INFO@@0@Z
-142b296b8	DelayLoad_?setMeteringEnabled@DSP@FMOD@@QEAA?AW4FMOD_RESULT@@_N0@Z
-142b296c4	DelayLoad_FMOD_Memory_GetStats
-142b8c79b	DelayLoad_D3D11CreateDevice
-142b8c820	DelayLoad_EOS_Logging_SetCallback
-142b8c82c	DelayLoad_EOS_Auth_Login
-142b8c838	DelayLoad_EOS_Logging_SetLogLevel
-142b8c844	DelayLoad_EOS_Shutdown
-142b8c850	DelayLoad_EOS_Initialize
-142b8c85c	DelayLoad_EOS_EResult_ToString
-142b8c868	DelayLoad_EOS_Platform_CheckForLauncherAndRestart
-142b8c874	DelayLoad_EOS_Platform_GetAuthInterface
-142b8c880	DelayLoad_EOS_Platform_GetActiveLocaleCode
-142b8c88c	DelayLoad_EOS_Auth_Token_Release
-142b8c898	DelayLoad_EOS_Auth_CopyUserAuthToken
-142b8c8a4	DelayLoad_EOS_Platform_SetNetworkStatus
-142b8c8b0	DelayLoad_EOS_Platform_Tick
-142b8c8bc	DelayLoad_EOS_EpicAccountId_IsValid
-142b8c8c8	DelayLoad_EOS_Platform_SetApplicationStatus
-142b8c8d4	DelayLoad_EOS_Platform_Create
-142b8c8e0	DelayLoad_EOS_Platform_Release
-142b8c8ec	DelayLoad_EOS_Ecom_Checkout
-142b8c8f8	DelayLoad_EOS_Ecom_Transaction_CopyEntitlementByIndex
-142b8c904	DelayLoad_EOS_Ecom_CopyOfferByIndex
-142b8c910	DelayLoad_EOS_Platform_GetEcomInterface
-142b8c91c	DelayLoad_EOS_Ecom_CopyItemById
-142b8c928	DelayLoad_EOS_Ecom_CatalogItem_Release
-142b8c934	DelayLoad_EOS_Ecom_CopyTransactionById
-142b8c940	DelayLoad_EOS_Ecom_Transaction_GetEntitlementsCount
-142b8c94c	DelayLoad_EOS_Ecom_QueryEntitlements
-142b8c958	DelayLoad_EOS_Ecom_GetOfferCount
-142b8c964	DelayLoad_EOS_Ecom_Entitlement_Release
-142b8c970	DelayLoad_EOS_Ecom_Transaction_Release
-142b8c97c	DelayLoad_EOS_Ecom_CatalogOffer_Release
-142b8c988	DelayLoad_EOS_Ecom_QueryOffers
-142b8c994	DelayLoad_EOS_Ecom_CopyEntitlementByIndex
-142b8c9a0	DelayLoad_EOS_EpicAccountId_ToString
-142b8c9ac	DelayLoad_EOS_Ecom_GetEntitlementsCount
-142b8ca31	DelayLoad_SteamAPI_UnregisterCallback
-142b8ca3d	DelayLoad_SteamInternal_ContextInit
-142b8ca49	DelayLoad_SteamAPI_Shutdown
-142b8ca55	DelayLoad_SteamAPI_GetHSteamUser
-142b8ca61	DelayLoad_SteamInternal_CreateInterface
-142b8ca6d	DelayLoad_SteamAPI_RegisterCallback
-142b8ca79	DelayLoad_SteamAPI_RestartAppIfNecessary
-142b8ca85	DelayLoad_SteamAPI_Init
-142b8ca91	DelayLoad_SteamInternal_FindOrCreateUserInterface
-142b8ca9d	DelayLoad_SteamAPI_RunCallbacks
-142b8caa9	DelayLoad_SteamAPI_RegisterCallResult
-142b8cab5	DelayLoad_SteamAPI_UnregisterCallResult
-142b8cb3a	DelayLoad_?setUserData@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEAX@Z
-142b8cb46	DelayLoad_?getUserData@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAX@Z
-142b8cb52	DelayLoad_?setCallback@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@P6A?AW44@IPEAUFMOD_STUDIO_EVENTINSTANCE@@PEAX@ZI@Z
-142b8cb5e	DelayLoad_?keyOff@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8cb6a	DelayLoad_?setParameterByID@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@UFMOD_STUDIO_PARAMETER_ID@@M_N@Z
-142b8cb76	DelayLoad_?release@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8cb82	DelayLoad_?getChannelGroup@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAVChannelGroup@3@@Z
-142b8cb8e	DelayLoad_?getPlaybackState@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAW4FMOD_STUDIO_PLAYBACK_STATE@@@Z
-142b8cb9a	DelayLoad_?setTimelinePosition@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
-142b8cba6	DelayLoad_?getTimelinePosition@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
-142b8cbb2	DelayLoad_?stop@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@W4FMOD_STUDIO_STOP_MODE@@@Z
-142b8cbbe	DelayLoad_?start@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8cbca	DelayLoad_?set3DAttributes@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEBUFMOD_3D_ATTRIBUTES@@@Z
-142b8cbd6	DelayLoad_?get3DAttributes@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAUFMOD_3D_ATTRIBUTES@@@Z
-142b8cbe2	DelayLoad_?setVolume@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@M@Z
-142b8cbee	DelayLoad_?isValid@EventInstance@Studio@FMOD@@QEBA_NXZ
-142b8cbfa	DelayLoad_?getLoadingState@Bank@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAW4FMOD_STUDIO_LOADING_STATE@@@Z
-142b8cc06	DelayLoad_?unload@Bank@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8cc12	DelayLoad_?getParameterDescriptionList@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAUFMOD_STUDIO_PARAMETER_DESCRIPTION@@HPEAH@Z
-142b8cc1e	DelayLoad_?loadBankCustom@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEBUFMOD_STUDIO_BANK_INFO@@IPEAPEAVBank@23@@Z
-142b8cc2a	DelayLoad_?setListenerWeight@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HM@Z
-142b8cc36	DelayLoad_?setListenerAttributes@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HPEBUFMOD_3D_ATTRIBUTES@@PEBUFMOD_VECTOR@@@Z
-142b8cc42	DelayLoad_?setNumListeners@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
-142b8cc4e	DelayLoad_?lookupID@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_GUID@@@Z
-142b8cc5a	DelayLoad_?setParameterByID@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@UFMOD_STUDIO_PARAMETER_ID@@M_N@Z
-142b8cc66	DelayLoad_?getSoundInfo@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_STUDIO_SOUND_INFO@@@Z
-142b8cc72	DelayLoad_?getVCA@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAPEAVVCA@23@@Z
-142b8cc7e	DelayLoad_?getEvent@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAPEAVEventDescription@23@@Z
-142b8cc8a	DelayLoad_?getCoreSystem@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAV13@@Z
-142b8cc96	DelayLoad_?update@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8cca2	DelayLoad_?release@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
-142b8ccae	DelayLoad_?initialize@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HIIPEAX@Z
-142b8ccba	DelayLoad_?setAdvancedSettings@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_STUDIO_ADVANCEDSETTINGS@@@Z
-142b8ccc6	DelayLoad_?create@System@Studio@FMOD@@SA?AW4FMOD_RESULT@@PEAPEAV123@I@Z
-142b8ccd2	DelayLoad_?setVolume@VCA@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@M@Z
-142b8ccde	DelayLoad_?getInstanceCount@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
-142b8ccea	DelayLoad_?createInstance@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAVEventInstance@23@@Z
-142b8ccf6	DelayLoad_?hasSustainPoint@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
-142b8cd02	DelayLoad_?isStream@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
-142b8cd0e	DelayLoad_?isOneshot@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
-142b8cd1a	DelayLoad_?getLength@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
-142b8cd26	DelayLoad_?getUserProperty@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_STUDIO_USER_PROPERTY@@@Z
-142b8cd32	DelayLoad_?getParameterDescriptionByIndex@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@HPEAUFMOD_STUDIO_PARAMETER_DESCRIPTION@@@Z
-142b8cd3e	DelayLoad_?getParameterDescriptionCount@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
-142b8cd4a	DelayLoad_?isValid@EventDescription@Studio@FMOD@@QEBA_NXZ
-142b8cd58	DloadAcquireSectionWriteAccess
-142b8cea4	DloadMakePermanentImageCommit
-142b8cfd8	DloadProtectSection
-142b8d068	DloadReleaseSectionWriteAccess
-142b8d480	_Mbrtowc
-142b8d8b8	_Xtime_get_ticks
-142b8f858	_Init_locks
-142b8f89c	_Lockit
-142b8f914	~_Lockit
-142b8fb50	regex_error
-142b8fc3c	_Stringify
-142b8fe04	_Locimp
-142b8fe80	_Locimp
-142b8ff08	`scalar_deleting_destructor'
-142b8ff64	_Facet_Register
-142b90114	_Locinfo_ctor
-142b90180	_Locinfo_dtor
-142b9019c	_New_Locimp
-142b901d0	_New_Locimp
-142b90258	_Deletegloballocale
-142b90344	_Ios_base_dtor
-142b90578	_Getwctype
-142b90998	_Getcvt
-142b90a30	_Wcrtomb
-142b90ddc	operator=
-142b90fb0	FID_conflict:`scalar_deleting_destructor'
-142b913dc	_CallMemberFunction2
-142b913ec	_CopyExceptionObject
-142b915bc	__ExceptionPtrCopy
-142b9161c	__ExceptionPtrCurrentException
-142b91834	_CallInContext
-142b91920	Get_STL_host_status
-142b91984	_Reschedule_chore
-142b919bc	_Schedule_chore
-142b91dd0	_Wcscoll
-142b91eb4	_Getcoll
-142b91ee8	_Strcoll
-142b921c8	_Stolx
-142b92884	_Locimp_ctor
-142b92a60	_Locinfo_ctor
-142b93008	basic_filebuf<>
-142b935bc	__std_fs_open_handle
-142b93b64	__crtLCMapStringW
-142b93ee8	__crtCompareStringW
-142b95754	_Getvals<unsigned_short>
-142b95844	_Getvals<unsigned_short>
-142b959cc	_Hash_array_representation<>
-142b95a40	_LStrxfrm<unsigned_short>
-142b99a58	~_Tidy_guard<>
-142b99fac	Ffmt
-142b9a334	Getcat
-142b9a3f0	Getcat
-142b9a4ac	Getcat
-142b9a568	Getcat
-142b9a624	Getcat
-142b9a6e0	Getcat
-142b9a79c	Getcat
-142b9a874	Getcat
-142b9a94c	Getcat
-142b9aa24	Getcat
-142b9aafc	Getcat
-142b9abb8	Getcat
-142b9ac74	Getcat
+14101d490	`scalar_deleting_destructor'
+1410264d0	Vulkan loader
+14103c3b0	`scalar_deleting_destructor'
+14119eb30	`scalar_deleting_destructor'
+1411ac2a0	`scalar_deleting_destructor'
+1411ac880	`scalar_deleting_destructor'
+1411c13e0	`scalar_deleting_destructor'
+1411ca400	`scalar_deleting_destructor'
+141243140	`scalar_deleting_destructor'
+14129a280	`scalar_deleting_destructor'
+1412c4c90	`scalar_deleting_destructor'
+141303fe0	`scalar_deleting_destructor'
+141318560	`scalar_deleting_destructor'
+141328620	`scalar_deleting_destructor'
+14133ee70	`scalar_deleting_destructor'
+141340510	`scalar_deleting_destructor'
+1413889d0	tls_callback_1
+1413c26d0	`scalar_deleting_destructor'
+141408750	`scalar_deleting_destructor'
+141408900	`scalar_deleting_destructor'
+141416e40	`scalar_deleting_destructor'
+14160be40	`scalar_deleting_destructor'
+1416a9990	Render: apply visibility to the AO scene node (+0x39a disabled flag)
+1418a21b0	`scalar_deleting_destructor'
+141924100	GEAL EnableRendering lambda body
+141939fc0	[NETWORKING] networking_type option reader
+1419ddb20	`scalar_deleting_destructor'
+141aa9250	dodge_roll_travel_distance getter
+141b76da0	end of a dodge roll: decides whether it carries on as a sprint
+141b7ab40	`scalar_deleting_destructor'
+141b8dc50	`scalar_deleting_destructor'
+141d24690	`scalar_deleting_destructor'
+141d43b60	animation controller: play animation (index, …)
+141d5d010	`scalar_deleting_destructor'
+141dccfa0	movement speed getter (base × movement_velocity_+permyriad × virtual_action_spee
+141dcd1a0	Pathfinding component constructor (+0x550 base speed, +0x55c multiplier)
+141dd89a0	Positioned initial data (facing +0x44c, flags0 bit 7 → lock)
+141dda7c0	Positioned simulation handler: 0x1dd/0x1de position, **0x1df SetOrientation (f32
+141ddb6f0	SetLocationForcedNoCallbacks (moves an entity to a cell)
+141ddc820	Positioned::SetOrientation(angle): writes +0x44c (radians, atan2(dy, dx) + π/2) 
+141de31a0	movement step: turns the entity toward its path (orientation mode +0x1e3 or the 
+141dfa4a0	StateMachine reader (shared-state count check)
+141e4dfa0	movement reset / stat listener: stops Move when Actor +0x2a1 bit 2 is set
+141e4fb40	start WASD walking: a Move action (skill 0x20002909) toward cell + input vector
+141e53630	Actor RecalculateStance ("Aiming", "AimingUpwards", "Ranged", "Mounted", "Unarme
+141e5d610	Actor "is sprinting": Actor +0x915 or the stat is_sprinting
+141e72a00	object registry insert ("Replacing awake/asleep/deleted object")
+141e892b0	create an action from an actor skill
+141f37e50	`scalar_deleting_destructor'
+141f38080	`scalar_deleting_destructor'
+141f3cc00	`scalar_deleting_destructor'
+141f3e5c0	`scalar_deleting_destructor'
+141f3e810	`scalar_deleting_destructor'
+141f3f7d0	`scalar_deleting_destructor'
+141f40110	`scalar_deleting_destructor'
+141f43820	`scalar_deleting_destructor'
+141f45010	`scalar_deleting_destructor'
+141f45720	`scalar_deleting_destructor'
+141f45c20	`scalar_deleting_destructor'
+141f468b0	`scalar_deleting_destructor'
+141f47160	`scalar_deleting_destructor'
+141f475b0	`scalar_deleting_destructor'
+141f47b30	0x355 serializer: u8, u16 len, bytes
+141f48110	`scalar_deleting_destructor'
+141f48560	`scalar_deleting_destructor'
+141f68ff0	`scalar_deleting_destructor'
+141f690f0	`scalar_deleting_destructor'
+141f695b0	`scalar_deleting_destructor'
+141f69830	S→C 0x1c8 StartAction reader
+141f6b080	0x1df reader
+141f6b260	S→C 0x64 MoveDirectionUpdate reader
+1420e3460	`scalar_deleting_destructor'
+1420e3630	`scalar_deleting_destructor'
+1420e38b0	`scalar_deleting_destructor'
+1420e4030	`scalar_deleting_destructor'
+1420e4250	`scalar_deleting_destructor'
+1420e6d40	login session receive loop
+1420e8313	login packet dispatcher switch (ClientLoginSession?), opcodes 0x02–0x47; opcode 
+1420e8325	login dispatch switch (opcode − 2; byte table 0x1420e9ad4, targets 0x1420e9a64);
+1420ebe30	`scalar_deleting_destructor'
+1420edc20	InitialState CharacterState flags → local player (+0x3eca..+0x3ede)
+142102da0	loader for server-delivered encrypted code modules
+14210efe0	chat sender (0x16, wstring; "@whisper")
+14210faa0	C→S 0x1a5 UseSkill sender (vtable 0x1434e5ae8, body 0x141ecde80); 0x1a7..0x1ad s
+14210fd30	skill target update sender: 0x1a8 (lockstep, relative), 0x1a9 (absolute), 0x1aa 
+14211dd30	instance server connect
+14211f6c0	logout routine ("FourLogOut"): 0 / 2 = exit to login / game, 1 = exit to charact
+14211fa00	game-session send (packet->vtable[1](packet, stream)); senders build the packet 
+14211fc50	sends 0x355 ExitReport (once per session)
+142120cf0	instance session receive loop
+142121364	0x1c frame report sender; 0x141f48870 its serializer
+14212ece0	world constructor (+0x661 frame mode; in-game world created with 2 by 0x14100b7e
+14212fd90	world start (InitialState vfunc +0x1f0): applies all queued packets
+142130360	flush packets scheduled at the current (entity, component, sequence) position
+142130440	lockstep frame playback: speed factor world +0x670 (1.01× with 1 spare frame, 1.
+142130840	world frame drain (world, f32 dt): applies queued simulation packets, updates en
+142134260	simulation packet queue (0x2f4 frame marker, 0x2f5 → world vfunc +0x178)
+142137270	frame-mode entity update loop (component vfunc +0x50, then 0x141e7d970)
+1421497c0	Actor component simulation handler: 0x64 WASD, 0x65, 0x1c8 start action, 0x1c9..
+14214a46a	Actor 0x1cc (u16 action id, u8) → Actor vfunc +0x130 (end action?)
+14214a580	Actor 0x1fc (f32, u16) → Actor vfunc +0x100
+14214da90	`scalar_deleting_destructor'
+14214e670	`scalar_deleting_destructor'
+14214eb10	`scalar_deleting_destructor'
+14214f020	`scalar_deleting_destructor'
+14214f300	`scalar_deleting_destructor'
+14214fba0	`scalar_deleting_destructor'
+14214fbe0	login incoming-packet factory (opcode → class); 0x13 CharacterCreated class 0x14
+142151110	`scalar_deleting_destructor'
+142151770	`scalar_deleting_destructor'
+1421522a0	`scalar_deleting_destructor'
+142153b00	`scalar_deleting_destructor'
+142154380	`scalar_deleting_destructor'
+142155ad0	`scalar_deleting_destructor'
+142155e40	`scalar_deleting_destructor'
+142156d70	`scalar_deleting_destructor'
+142157470	`scalar_deleting_destructor'
+1421577e0	`scalar_deleting_destructor'
+142157da0	`scalar_deleting_destructor'
+1421589f0	`scalar_deleting_destructor'
+14215a970	`scalar_deleting_destructor'
+14215b8a0	`scalar_deleting_destructor'
+14215ba70	`scalar_deleting_destructor'
+14215bd20	`scalar_deleting_destructor'
+14215cad0	`scalar_deleting_destructor'
+14215dde0	`scalar_deleting_destructor'
+14215e5a0	`scalar_deleting_destructor'
+142162a70	`scalar_deleting_destructor'
+142165010	`scalar_deleting_destructor'
+142165ed0	`scalar_deleting_destructor'
+142166650	`scalar_deleting_destructor'
+142166ad0	`scalar_deleting_destructor'
+142168db0	`scalar_deleting_destructor'
+142169710	`scalar_deleting_destructor'
+14216a770	`scalar_deleting_destructor'
+14216b9d0	`scalar_deleting_destructor'
+14216c200	`scalar_deleting_destructor'
+14216c590	`scalar_deleting_destructor'
+14216cab0	`scalar_deleting_destructor'
+14216d470	`scalar_deleting_destructor'
+14216de60	`scalar_deleting_destructor'
+14216e410	`scalar_deleting_destructor'
+142170050	`scalar_deleting_destructor'
+1421704a0	`scalar_deleting_destructor'
+1421820a0	Stats component message handler
+142184420	S→C 0x1fe SetPause reader; applied via world vfunc +0x200 0x14168ac70
+1421847d0	`scalar_deleting_destructor'
+142185350	`scalar_deleting_destructor'
+1421861d0	`scalar_deleting_destructor'
+14218a9d0	Actor skill container reader; 0x14218b130 skill list; 0x142188d50 one skill
+142197e80	stream read (stream, dst, len)
+142197fb0	stream write (stream, src, len)
+142198110	stream flush (stream, err, force)
+142198187	inside the stream flush
+142198680	installs a cipher on a Tcpstream
+14219dd90	crypto session constructor (DH groups, DSA key, "#2")
+14219ef90	crypto: DH2 agree + SHA-512 → 64-byte key material ("#1")
+14219f160	crypto: verify server signature + derive keys ("General Rhoa Failure #3")
+14219f500	builds the two-direction Salsa20 cipher from the key material
+1421a4290	`scalar_deleting_destructor'
+1421c52f0	HNC bit queue: key material XOR table 0x142f10980 + swaps, Salsa20 pair
+1421c55a0	HNC incoming byte parser ("HNC Protocol Violated")
+1421c5b90	message reader (registry, stream)
+1426acb60	stat container set (container, key, value)
+1426f2460	GEAL script interpreter loop
+142756350	`scalar_deleting_destructor'
+142756390	`scalar_deleting_destructor'
+142763b60	`scalar_deleting_destructor'
+142769450	`scalar_deleting_destructor'
+14284e220	`scalar_deleting_destructor'
+14284e260	`scalar_deleting_destructor'
+14284e340	`scalar_deleting_destructor'
+14286e630	`scalar_deleting_destructor'
+142b032f0	Crypto++ Salsa20 key setup
+142b2985c	DelayLoad_FMOD_Memory_Initialize
+142b29868	DelayLoad_?createStream@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEBDIPEAUFMOD_CREATESOUNDEXINFO@@PEAPEAVSound@2@@Z
+142b29874	DelayLoad_?setCallback@System@FMOD@@QEAA?AW4FMOD_RESULT@@P6A?AW43@PEAUFMOD_SYSTEM@@IPEAX11@ZI@Z
+142b29880	DelayLoad_?setAdvancedSettings@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_ADVANCEDSETTINGS@@@Z
+142b2988c	DelayLoad_?setSoftwareChannels@System@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
+142b29898	DelayLoad_?getDriver@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAH@Z
+142b298a4	DelayLoad_?setDriver@System@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
+142b298b0	DelayLoad_?getDriverInfo@System@FMOD@@QEAA?AW4FMOD_RESULT@@HPEADHPEAUFMOD_GUID@@PEAHPEAW4FMOD_SPEAKERMODE@@2@Z
+142b298bc	DelayLoad_?getNumDrivers@System@FMOD@@QEAA?AW4FMOD_RESULT@@PEAH@Z
+142b298c8	DelayLoad_?getLength@Sound@FMOD@@QEAA?AW4FMOD_RESULT@@PEAII@Z
+142b298d4	DelayLoad_?release@Sound@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b298e0	DelayLoad_?getDSP@ChannelControl@FMOD@@QEAA?AW4FMOD_RESULT@@HPEAPEAVDSP@2@@Z
+142b298ec	DelayLoad_?getMeteringInfo@DSP@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_DSP_METERING_INFO@@0@Z
+142b298f8	DelayLoad_?setMeteringEnabled@DSP@FMOD@@QEAA?AW4FMOD_RESULT@@_N0@Z
+142b29904	DelayLoad_FMOD_Memory_GetStats
+142b8c9db	DelayLoad_D3D11CreateDevice
+142b8ca60	DelayLoad_EOS_Logging_SetCallback
+142b8ca6c	DelayLoad_EOS_Auth_Login
+142b8ca78	DelayLoad_EOS_Logging_SetLogLevel
+142b8ca84	DelayLoad_EOS_Shutdown
+142b8ca90	DelayLoad_EOS_Initialize
+142b8ca9c	DelayLoad_EOS_EResult_ToString
+142b8caa8	DelayLoad_EOS_Platform_CheckForLauncherAndRestart
+142b8cab4	DelayLoad_EOS_Platform_GetAuthInterface
+142b8cac0	DelayLoad_EOS_Platform_GetActiveLocaleCode
+142b8cacc	DelayLoad_EOS_Auth_Token_Release
+142b8cad8	DelayLoad_EOS_Auth_CopyUserAuthToken
+142b8cae4	DelayLoad_EOS_Platform_SetNetworkStatus
+142b8caf0	DelayLoad_EOS_Platform_Tick
+142b8cafc	DelayLoad_EOS_EpicAccountId_IsValid
+142b8cb08	DelayLoad_EOS_Platform_SetApplicationStatus
+142b8cb14	DelayLoad_EOS_Platform_Create
+142b8cb20	DelayLoad_EOS_Platform_Release
+142b8cb2c	DelayLoad_EOS_Ecom_Checkout
+142b8cb38	DelayLoad_EOS_Ecom_Transaction_CopyEntitlementByIndex
+142b8cb44	DelayLoad_EOS_Ecom_CopyOfferByIndex
+142b8cb50	DelayLoad_EOS_Platform_GetEcomInterface
+142b8cb5c	DelayLoad_EOS_Ecom_CopyItemById
+142b8cb68	DelayLoad_EOS_Ecom_CatalogItem_Release
+142b8cb74	DelayLoad_EOS_Ecom_CopyTransactionById
+142b8cb80	DelayLoad_EOS_Ecom_Transaction_GetEntitlementsCount
+142b8cb8c	DelayLoad_EOS_Ecom_QueryEntitlements
+142b8cb98	DelayLoad_EOS_Ecom_GetOfferCount
+142b8cba4	DelayLoad_EOS_Ecom_Entitlement_Release
+142b8cbb0	DelayLoad_EOS_Ecom_Transaction_Release
+142b8cbbc	DelayLoad_EOS_Ecom_CatalogOffer_Release
+142b8cbc8	DelayLoad_EOS_Ecom_QueryOffers
+142b8cbd4	DelayLoad_EOS_Ecom_CopyEntitlementByIndex
+142b8cbe0	DelayLoad_EOS_EpicAccountId_ToString
+142b8cbec	DelayLoad_EOS_Ecom_GetEntitlementsCount
+142b8cc71	DelayLoad_SteamAPI_UnregisterCallback
+142b8cc7d	DelayLoad_SteamInternal_ContextInit
+142b8cc89	DelayLoad_SteamAPI_Shutdown
+142b8cc95	DelayLoad_SteamAPI_GetHSteamUser
+142b8cca1	DelayLoad_SteamInternal_CreateInterface
+142b8ccad	DelayLoad_SteamAPI_RegisterCallback
+142b8ccb9	DelayLoad_SteamAPI_RestartAppIfNecessary
+142b8ccc5	DelayLoad_SteamAPI_Init
+142b8ccd1	DelayLoad_SteamInternal_FindOrCreateUserInterface
+142b8ccdd	DelayLoad_SteamAPI_RunCallbacks
+142b8cce9	DelayLoad_SteamAPI_RegisterCallResult
+142b8ccf5	DelayLoad_SteamAPI_UnregisterCallResult
+142b8cd7a	DelayLoad_?setUserData@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEAX@Z
+142b8cd86	DelayLoad_?getUserData@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAX@Z
+142b8cd92	DelayLoad_?setCallback@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@P6A?AW44@IPEAUFMOD_STUDIO_EVENTINSTANCE@@PEAX@ZI@Z
+142b8cd9e	DelayLoad_?keyOff@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8cdaa	DelayLoad_?setParameterByID@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@UFMOD_STUDIO_PARAMETER_ID@@M_N@Z
+142b8cdb6	DelayLoad_?release@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8cdc2	DelayLoad_?getChannelGroup@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAVChannelGroup@3@@Z
+142b8cdce	DelayLoad_?getPlaybackState@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAW4FMOD_STUDIO_PLAYBACK_STATE@@@Z
+142b8cdda	DelayLoad_?setTimelinePosition@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
+142b8cde6	DelayLoad_?getTimelinePosition@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
+142b8cdf2	DelayLoad_?stop@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@W4FMOD_STUDIO_STOP_MODE@@@Z
+142b8cdfe	DelayLoad_?start@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8ce0a	DelayLoad_?set3DAttributes@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEBUFMOD_3D_ATTRIBUTES@@@Z
+142b8ce16	DelayLoad_?get3DAttributes@EventInstance@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAUFMOD_3D_ATTRIBUTES@@@Z
+142b8ce22	DelayLoad_?setVolume@EventInstance@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@M@Z
+142b8ce2e	DelayLoad_?isValid@EventInstance@Studio@FMOD@@QEBA_NXZ
+142b8ce3a	DelayLoad_?getLoadingState@Bank@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAW4FMOD_STUDIO_LOADING_STATE@@@Z
+142b8ce46	DelayLoad_?unload@Bank@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8ce52	DelayLoad_?getParameterDescriptionList@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAUFMOD_STUDIO_PARAMETER_DESCRIPTION@@HPEAH@Z
+142b8ce5e	DelayLoad_?loadBankCustom@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEBUFMOD_STUDIO_BANK_INFO@@IPEAPEAVBank@23@@Z
+142b8ce6a	DelayLoad_?setListenerWeight@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HM@Z
+142b8ce76	DelayLoad_?setListenerAttributes@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HPEBUFMOD_3D_ATTRIBUTES@@PEBUFMOD_VECTOR@@@Z
+142b8ce82	DelayLoad_?setNumListeners@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@H@Z
+142b8ce8e	DelayLoad_?lookupID@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_GUID@@@Z
+142b8ce9a	DelayLoad_?setParameterByID@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@UFMOD_STUDIO_PARAMETER_ID@@M_N@Z
+142b8cea6	DelayLoad_?getSoundInfo@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_STUDIO_SOUND_INFO@@@Z
+142b8ceb2	DelayLoad_?getVCA@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAPEAVVCA@23@@Z
+142b8cebe	DelayLoad_?getEvent@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAPEAVEventDescription@23@@Z
+142b8ceca	DelayLoad_?getCoreSystem@System@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAV13@@Z
+142b8ced6	DelayLoad_?update@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8cee2	DelayLoad_?release@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@XZ
+142b8ceee	DelayLoad_?initialize@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@HIIPEAX@Z
+142b8cefa	DelayLoad_?setAdvancedSettings@System@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@PEAUFMOD_STUDIO_ADVANCEDSETTINGS@@@Z
+142b8cf06	DelayLoad_?create@System@Studio@FMOD@@SA?AW4FMOD_RESULT@@PEAPEAV123@I@Z
+142b8cf12	DelayLoad_?setVolume@VCA@Studio@FMOD@@QEAA?AW4FMOD_RESULT@@M@Z
+142b8cf1e	DelayLoad_?getInstanceCount@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
+142b8cf2a	DelayLoad_?createInstance@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAPEAVEventInstance@23@@Z
+142b8cf36	DelayLoad_?hasSustainPoint@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
+142b8cf42	DelayLoad_?isStream@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
+142b8cf4e	DelayLoad_?isOneshot@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEA_N@Z
+142b8cf5a	DelayLoad_?getLength@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
+142b8cf66	DelayLoad_?getUserProperty@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEBDPEAUFMOD_STUDIO_USER_PROPERTY@@@Z
+142b8cf72	DelayLoad_?getParameterDescriptionByIndex@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@HPEAUFMOD_STUDIO_PARAMETER_DESCRIPTION@@@Z
+142b8cf7e	DelayLoad_?getParameterDescriptionCount@EventDescription@Studio@FMOD@@QEBA?AW4FMOD_RESULT@@PEAH@Z
+142b8cf8a	DelayLoad_?isValid@EventDescription@Studio@FMOD@@QEBA_NXZ
+142b8cf98	DloadAcquireSectionWriteAccess
+142b8d0e4	DloadMakePermanentImageCommit
+142b8d218	DloadProtectSection
+142b8d2a8	DloadReleaseSectionWriteAccess
+142b8d6c0	_Mbrtowc
+142b8daf8	_Xtime_get_ticks
+142b8fa98	_Init_locks
+142b8fadc	_Lockit
+142b8fb54	~_Lockit
+142b8fd90	regex_error
+142b8fe7c	_Stringify
+142b90044	_Locimp
+142b900c0	_Locimp
+142b90148	`scalar_deleting_destructor'
+142b901a4	_Facet_Register
+142b90354	_Locinfo_ctor
+142b903c0	_Locinfo_dtor
+142b903dc	_New_Locimp
+142b90410	_New_Locimp
+142b90498	_Deletegloballocale
+142b90584	_Ios_base_dtor
+142b907b8	_Getwctype
+142b90bd8	_Getcvt
+142b90c70	_Wcrtomb
+142b9101c	operator=
+142b911f0	FID_conflict:`scalar_deleting_destructor'
+142b9161c	_CallMemberFunction2
+142b9162c	_CopyExceptionObject
+142b917fc	__ExceptionPtrCopy
+142b9185c	__ExceptionPtrCurrentException
+142b91a74	_CallInContext
+142b91b60	Get_STL_host_status
+142b91bc4	_Reschedule_chore
+142b91bfc	_Schedule_chore
+142b92010	_Wcscoll
+142b920f4	_Getcoll
+142b92128	_Strcoll
+142b92408	_Stolx
+142b92ac4	_Locimp_ctor
+142b92ca0	_Locinfo_ctor
+142b93248	basic_filebuf<>
+142b937fc	__std_fs_open_handle
+142b93da4	__crtLCMapStringW
+142b94128	__crtCompareStringW
+142b95994	_Getvals<unsigned_short>
+142b95a84	_Getvals<unsigned_short>
+142b95c0c	_Hash_array_representation<>
+142b95c80	_LStrxfrm<unsigned_short>
+142b99c98	~_Tidy_guard<>
+142b9a1ec	Ffmt
+142b9a574	Getcat
+142b9a630	Getcat
+142b9a6ec	Getcat
+142b9a7a8	Getcat
+142b9a864	Getcat
+142b9a920	Getcat
+142b9a9dc	Getcat
+142b9aab4	Getcat
+142b9ab8c	Getcat
+142b9ac64	Getcat
 142b9ad3c	Getcat
-142b9d708	FID_conflict:_Getvals
-142b9d790	Inc
-142ba0940	Rep
-142ba09f0	Rep
-142ba0d64	do_compare
-142ba35bc	do_hash
-142ba35d0	do_in
-142ba367c	do_length
-142ba3770	do_narrow
-142ba50b8	do_put
-142ba57d8	do_scan_is
-142ba583c	do_scan_not
-142ba5af4	do_unshift
-142ba5b98	do_widen
-142ba5bdc	do_widen
-142ba5c54	equal
-142ba63fc	_Getvals<char>
-142ba6e4c	Getcat
-142ba6f08	Getcat
-142ba6fc4	Getcat
-142ba7080	Getcat
-142ba7158	Getcat
-142ba7230	_Getcat
-142bab87c	tls_callback_2
-142bab8e4	__dyn_tls_on_demand_init
-142bab930	_Init_thread_footer
-142baba14	`eh_vector_destructor_iterator'
-142baba80	__ArrayUnwind
-142babae4	__scrt_acquire_startup_lock
-142babb5c	__scrt_initialize_onexit_tables
-142babc80	__scrt_release_startup_lock
-142babca4	__scrt_uninitialize_crt
-142babcd0	_onexit
-142babd0c	atexit
-142babd50	`eh_vector_constructor_iterator'
-142babdc0	tls_callback_3
-142babf04	`eh_vector_copy_constructor_iterator'
-142bac05c	__scrt_common_main_seh
-142bac1d0	entry
-142bac4c0	__GSHandlerCheck
-142bac4e0	__GSHandlerCheckCommon
-142bac550	__security_check_cookie
-142bac580	__chkstk
-142bac5d0	__raise_securityfailure
-142bac78c	capture_current_context
-142bac7fc	capture_previous_context
-142bac870	FID_conflict:__GSHandlerCheck_EH
-142bac8f0	__scrt_is_ucrt_dll_in_use
-142baca4c	__scrt_get_show_window_mode
-142bacb50	__security_init_cookie
-142bc6180	tls_callback_0
-142bc6190	tls_callback_4
-142bfdd37	DelayLoad_Ordinal_101
-142bfddbc	DelayLoad_vkGetImageMemoryRequirements
-142bfddc8	DelayLoad_vkBindImageMemory
-142bfddd4	DelayLoad_vkFreeMemory
-142bfdde0	DelayLoad_vkCmdCopyBuffer
-142bfddec	DelayLoad_vkGetPhysicalDeviceMemoryProperties
-142bfddf8	DelayLoad_vkUnmapMemory
-142bfde04	DelayLoad_vkCreateBuffer
-142bfde10	DelayLoad_vkFlushMappedMemoryRanges
-142bfde1c	DelayLoad_vkGetDeviceProcAddr
-142bfde28	DelayLoad_vkDestroyBuffer
-142bfde34	DelayLoad_vkAllocateMemory
-142bfde40	DelayLoad_vkBindBufferMemory
-142bfde4c	DelayLoad_vkGetInstanceProcAddr
-142bfde58	DelayLoad_vkGetPhysicalDeviceProperties
-142bfde64	DelayLoad_vkInvalidateMappedMemoryRanges
-142bfde70	DelayLoad_vkDestroyImage
-142bfde7c	DelayLoad_vkCreateImage
-142bfde88	DelayLoad_vkMapMemory
-142bfde94	DelayLoad_vkGetBufferMemoryRequirements
-142c123b6	DelayLoad_BinkPause
-142c123c2	DelayLoad_BinkDoFrameAsyncWait
-142c123ce	DelayLoad_BinkRequestStopAsyncThreadsMulti
-142c123da	DelayLoad_BinkSetVolume
-142c123e6	DelayLoad_BinkNextFrame
-142c123f2	DelayLoad_BinkSetWillLoop
-142c123fe	DelayLoad_BinkWaitStopAsyncThreadsMulti
-142c1240a	DelayLoad_BinkOpenDirectSound
-142c12416	DelayLoad_BinkShouldSkip
-142c12422	DelayLoad_BinkDoFrameAsyncMulti
-142c1242e	DelayLoad_BinkStartAsyncThread
-142c1243a	DelayLoad_BinkSetSoundSystem
-142c12446	DelayLoad_BinkCurrentSubtitle
-142c12452	DelayLoad_BinkSetMemory
-142c1245e	DelayLoad_BinkWait
-142c1246a	DelayLoad_BinkGoto
-142c12476	DelayLoad_BinkClose
-142c12482	DelayLoad_BinkOpen
-142c1248e	DelayLoad_BinkLoadSubtitles
-142c1249a	DelayLoad_BinkSetOSFileCallbacks
-142c124a6	DelayLoad_BinkGetError
-142c12670	_com_error
-142c126f0	FID_conflict:__GSHandlerCheck_EH
-142c12770	__GSHandlerCheck_SEH
-142c127f8	_CallSETranslator<>
-142c1284c	_CallSETranslator<>
-142c12a70	FrameUnwindToEmptyState
-142c12ad4	FrameUnwindToEmptyState
-142c12bd8	GetEstablisherFrame
-142c13284	_CreateFrameInfo
-142c13314	_GetImageBase
-142c13328	_GetThrowImageBase
-142c1333c	_SetImageBase
-142c136cc	__std_exception_copy
-142c1375c	__std_exception_destroy
-142c13990	__DestructExceptionObject
-142c13a00	_IsExceptionObjectToBeDestroyed
-142c13a30	__AdjustPointer
-142c13abc	__current_exception
-142c13ae4	Unwind@142c13ae4
-142c13b00	__std_type_info_compare
-142c13d34	set_unexpected
-142c141e8	__uncaught_exception
-142c14208	__uncaught_exceptions
-142c14224	__vcrt_initialize
-142c1424c	__vcrt_uninitialize
-142c142a4	__vcrt_getptd_noexit
-142c14364	__vcrt_getptd_noinit
-142c143b4	__vcrt_initialize_ptd
-142c143fc	__vcrt_uninitialize_ptd
-142c14420	GetCurrentState
-142c14448	GetUnwindTryBlock
-142c14474	SetState
-142c14480	SetUnwindTryBlock
-142c14624	BuildCatchObjectHelperInternal<__FrameHandler3>
-142c14824	BuildCatchObjectHelperInternal<__FrameHandler4>
-142c14a28	BuildCatchObjectInternal<__FrameHandler3>
-142c14ae8	BuildCatchObjectInternal<__FrameHandler4>
-142c14bac	CatchIt<__FrameHandler3>
-142c14c80	CatchIt<__FrameHandler4>
-142c15c8c	TypeMatchHelper<__FrameHandler3>
-142c165a0	CxxCallCatchBlock
-142c16bf4	ExFilterRethrowFH4
-142c16c24	FrameUnwindToState
-142c170b8	GetHandlerSearchState
-142c17240	Is_bad_exception_allowed
-142c17554	__except_validate_context_record
-142c1758c	__except_validate_jump_buffer
-142c1764c	pcharNode<>
-142c176c0	append<pcharNode>
-142c17908	DName
-142c17934	DName
-142c17a5c	DName
-142c17b98	operator_new
-142c17bf4	operator[]
-142c17c34	operator+
-142c17c60	operator+
-142c17c8c	operator+
-142c17cb8	operator+
-142c17ce4	operator+=
-142c17dbc	operator+=
-142c17e80	operator+=
-142c17ed8	UScore
-142c18ee0	doPchar
-142c19658	getBasedType
-142c1a7b8	getDataType
-142c1b2ec	getExternalDataType
-142c1ba58	getLastChar
-142c1ba84	getLastChar
-142c1bad0	getLexicalFrame
-142c1bbc8	getMemoryWithBuffer
-142c1bc58	getNoexcept
-142c1ca64	getPtrRefDataType
-142c1cff4	getReturnType
-142c1d624	getSignedDimension
-142c1d6ac	getString
-142c1d708	getString
-142c1d738	getString
-142c1d784	getString
-142c1d95c	getSymbolName
-142c1eb48	getVCallThunkType
-142c1ed88	getVdispMapType
-142c1f310	length
-142c1f588	__vcrt_initialize_locks
-142c1f5ec	__vcrt_uninitialize_locks
-142c1f790	__vcrt_FlsAlloc
-142c1f7d8	__vcrt_FlsFree
-142c1f820	__vcrt_FlsGetValue
-142c1f868	__vcrt_FlsSetValue
-142c1f8bc	__vcrt_InitializeCriticalSectionEx
-142c1f960	_CallSettingFrame
-142c1fa00	_CallSettingFrameEncoded
-142c1fd60	_LocaleUpdate
-142c200b8	common_flush_all
-142c20280	fflush
-142c208e4	_ungetwc_nolock
-142c20a20	ungetwc
-142c20ef0	operator()<>
-142c20f30	operator()<>
-142c2142c	is_wide_character_specifier<wchar_t>
-142c25fe8	type_case_Z
-142c26978	validate_stream_is_ansi_if_required
-142c26a14	write_string
-142c26ab8	write_string
-142c279dc	_fgetc_nolock
-142c27ce8	fgetwc
-142c27d40	__acrt_initialize_stdio
-142c27e60	__acrt_iob_func
-142c27e74	__acrt_uninitialize_stdio
-142c27ed0	_get_stream_buffer_pointers
-142c27f64	operator()<>
-142c28364	fgetpos
-142c283b0	operator()<>
-142c28610	_time64
-142c287b4	ungetc
-1435130b8	string "HNC Protocol Violated"
+142b9adf8	Getcat
+142b9aeb4	Getcat
+142b9af7c	Getcat
+142b9d948	FID_conflict:_Getvals
+142b9d9d0	Inc
+142ba0b80	Rep
+142ba0c30	Rep
+142ba0fa4	do_compare
+142ba37fc	do_hash
+142ba3810	do_in
+142ba38bc	do_length
+142ba39b0	do_narrow
+142ba52f8	do_put
+142ba5a18	do_scan_is
+142ba5a7c	do_scan_not
+142ba5d34	do_unshift
+142ba5dd8	do_widen
+142ba5e1c	do_widen
+142ba5e94	equal
+142ba663c	_Getvals<char>
+142ba708c	Getcat
+142ba7148	Getcat
+142ba7204	Getcat
+142ba72c0	Getcat
+142ba7398	Getcat
+142ba7470	_Getcat
+142bababc	tls_callback_2
+142babb24	__dyn_tls_on_demand_init
+142babb70	_Init_thread_footer
+142babc54	`eh_vector_destructor_iterator'
+142babcc0	__ArrayUnwind
+142babd24	__scrt_acquire_startup_lock
+142babd9c	__scrt_initialize_onexit_tables
+142babec0	__scrt_release_startup_lock
+142babee4	__scrt_uninitialize_crt
+142babf10	_onexit
+142babf4c	atexit
+142babf90	`eh_vector_constructor_iterator'
+142bac000	tls_callback_3
+142bac144	`eh_vector_copy_constructor_iterator'
+142bac29c	__scrt_common_main_seh
+142bac410	entry
+142bac700	__GSHandlerCheck
+142bac720	__GSHandlerCheckCommon
+142bac790	__security_check_cookie
+142bac7c0	__chkstk
+142bac810	__raise_securityfailure
+142bac9cc	capture_current_context
+142baca3c	capture_previous_context
+142bacab0	FID_conflict:__GSHandlerCheck_EH
+142bacb30	__scrt_is_ucrt_dll_in_use
+142bacc8c	__scrt_get_show_window_mode
+142bacd90	__security_init_cookie
+142bc63c0	tls_callback_0
+142bc63d0	tls_callback_4
+142bfdf77	DelayLoad_Ordinal_101
+142bfdffc	DelayLoad_vkGetImageMemoryRequirements
+142bfe008	DelayLoad_vkBindImageMemory
+142bfe014	DelayLoad_vkFreeMemory
+142bfe020	DelayLoad_vkCmdCopyBuffer
+142bfe02c	DelayLoad_vkGetPhysicalDeviceMemoryProperties
+142bfe038	DelayLoad_vkUnmapMemory
+142bfe044	DelayLoad_vkCreateBuffer
+142bfe050	DelayLoad_vkFlushMappedMemoryRanges
+142bfe05c	DelayLoad_vkGetDeviceProcAddr
+142bfe068	DelayLoad_vkDestroyBuffer
+142bfe074	DelayLoad_vkAllocateMemory
+142bfe080	DelayLoad_vkBindBufferMemory
+142bfe08c	DelayLoad_vkGetInstanceProcAddr
+142bfe098	DelayLoad_vkGetPhysicalDeviceProperties
+142bfe0a4	DelayLoad_vkInvalidateMappedMemoryRanges
+142bfe0b0	DelayLoad_vkDestroyImage
+142bfe0bc	DelayLoad_vkCreateImage
+142bfe0c8	DelayLoad_vkMapMemory
+142bfe0d4	DelayLoad_vkGetBufferMemoryRequirements
+142c125f6	DelayLoad_BinkPause
+142c12602	DelayLoad_BinkDoFrameAsyncWait
+142c1260e	DelayLoad_BinkRequestStopAsyncThreadsMulti
+142c1261a	DelayLoad_BinkSetVolume
+142c12626	DelayLoad_BinkNextFrame
+142c12632	DelayLoad_BinkSetWillLoop
+142c1263e	DelayLoad_BinkWaitStopAsyncThreadsMulti
+142c1264a	DelayLoad_BinkOpenDirectSound
+142c12656	DelayLoad_BinkShouldSkip
+142c12662	DelayLoad_BinkDoFrameAsyncMulti
+142c1266e	DelayLoad_BinkStartAsyncThread
+142c1267a	DelayLoad_BinkSetSoundSystem
+142c12686	DelayLoad_BinkCurrentSubtitle
+142c12692	DelayLoad_BinkSetMemory
+142c1269e	DelayLoad_BinkWait
+142c126aa	DelayLoad_BinkGoto
+142c126b6	DelayLoad_BinkClose
+142c126c2	DelayLoad_BinkOpen
+142c126ce	DelayLoad_BinkLoadSubtitles
+142c126da	DelayLoad_BinkSetOSFileCallbacks
+142c126e6	DelayLoad_BinkGetError
+142c128b0	_com_error
+142c12930	FID_conflict:__GSHandlerCheck_EH
+142c129b0	__GSHandlerCheck_SEH
+142c12a38	_CallSETranslator<>
+142c12a8c	_CallSETranslator<>
+142c12cb0	FrameUnwindToEmptyState
+142c12d14	FrameUnwindToEmptyState
+142c12e18	GetEstablisherFrame
+142c134c4	_CreateFrameInfo
+142c13554	_GetImageBase
+142c13568	_GetThrowImageBase
+142c1357c	_SetImageBase
+142c1390c	__std_exception_copy
+142c1399c	__std_exception_destroy
+142c13bd0	__DestructExceptionObject
+142c13c40	_IsExceptionObjectToBeDestroyed
+142c13c70	__AdjustPointer
+142c13cfc	__current_exception
+142c13d24	Unwind@142c13ae4
+142c13d40	__std_type_info_compare
+142c13f74	set_unexpected
+142c14428	__uncaught_exception
+142c14448	__uncaught_exceptions
+142c14464	__vcrt_initialize
+142c1448c	__vcrt_uninitialize
+142c144e4	__vcrt_getptd_noexit
+142c145a4	__vcrt_getptd_noinit
+142c145f4	__vcrt_initialize_ptd
+142c1463c	__vcrt_uninitialize_ptd
+142c14660	GetCurrentState
+142c14688	GetUnwindTryBlock
+142c146b4	SetState
+142c146c0	SetUnwindTryBlock
+142c14864	BuildCatchObjectHelperInternal<__FrameHandler3>
+142c14a64	BuildCatchObjectHelperInternal<__FrameHandler4>
+142c14c68	BuildCatchObjectInternal<__FrameHandler3>
+142c14d28	BuildCatchObjectInternal<__FrameHandler4>
+142c14dec	CatchIt<__FrameHandler3>
+142c14ec0	CatchIt<__FrameHandler4>
+142c15ecc	TypeMatchHelper<__FrameHandler3>
+142c167e0	CxxCallCatchBlock
+142c16e34	ExFilterRethrowFH4
+142c16e64	FrameUnwindToState
+142c172f8	GetHandlerSearchState
+142c17480	Is_bad_exception_allowed
+142c17794	__except_validate_context_record
+142c177cc	__except_validate_jump_buffer
+142c1788c	pcharNode<>
+142c17900	append<pcharNode>
+142c17b48	DName
+142c17b74	DName
+142c17c9c	DName
+142c17dd8	operator_new
+142c17e34	operator[]
+142c17e74	operator+
+142c17ea0	operator+
+142c17ecc	operator+
+142c17ef8	operator+
+142c17f24	operator+=
+142c17ffc	operator+=
+142c180c0	operator+=
+142c18118	UScore
+142c19120	doPchar
+142c19898	getBasedType
+142c1a9f8	getDataType
+142c1b52c	getExternalDataType
+142c1bc98	getLastChar
+142c1bcc4	getLastChar
+142c1bd10	getLexicalFrame
+142c1be08	getMemoryWithBuffer
+142c1be98	getNoexcept
+142c1cca4	getPtrRefDataType
+142c1d234	getReturnType
+142c1d864	getSignedDimension
+142c1d8ec	getString
+142c1d948	getString
+142c1d978	getString
+142c1d9c4	getString
+142c1db9c	getSymbolName
+142c1ed88	getVCallThunkType
+142c1efc8	getVdispMapType
+142c1f550	length
+142c1f7c8	__vcrt_initialize_locks
+142c1f82c	__vcrt_uninitialize_locks
+142c1f9d0	__vcrt_FlsAlloc
+142c1fa18	__vcrt_FlsFree
+142c1fa60	__vcrt_FlsGetValue
+142c1faa8	__vcrt_FlsSetValue
+142c1fafc	__vcrt_InitializeCriticalSectionEx
+142c1fba0	_CallSettingFrame
+142c1fc40	_CallSettingFrameEncoded
+142c1ffa0	_LocaleUpdate
+142c202f8	common_flush_all
+142c204c0	fflush
+142c20b24	_ungetwc_nolock
+142c20c60	ungetwc
+142c21130	operator()<>
+142c21170	operator()<>
+142c2166c	is_wide_character_specifier<wchar_t>
+142c26228	type_case_Z
+142c26bb8	validate_stream_is_ansi_if_required
+142c26c54	write_string
+142c26cf8	write_string
+142c27c1c	_fgetc_nolock
+142c27f28	fgetwc
+142c27f80	__acrt_initialize_stdio
+142c280a0	__acrt_iob_func
+142c280b4	__acrt_uninitialize_stdio
+142c28110	_get_stream_buffer_pointers
+142c281a4	operator()<>
+142c285a4	fgetpos
+142c285f0	operator()<>
+142c28850	_time64
+142c289f4	ungetc
+143513238	string "HNC Protocol Violated"

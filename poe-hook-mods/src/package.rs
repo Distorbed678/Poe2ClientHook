@@ -406,7 +406,7 @@ version = "1.0.0"
 side = "both"
 
 [game]
-versions = ["0.5.5e"]
+versions = ["0.5.5e.hotfix1"]
 
 [client]
 dll = "client/hello.dll"

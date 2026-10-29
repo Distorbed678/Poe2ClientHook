@@ -892,7 +892,7 @@ authors = ["Someone"]
 extra = true
 
 [game]
-versions = ["0.5.5e"]
+versions = ["0.5.5e.hotfix1"]
 hook_api = 1
 nope = 1
 
@@ -924,7 +924,7 @@ side = "both"
 future = 1
 
 [game]
-versions = ["0.5.5e"]
+versions = ["0.5.5e.hotfix1"]
 
 [load]
 conflicts = ["slow-rolls"]
@@ -976,7 +976,7 @@ role = "admin"
         assert_eq!(m.name, "My Mod");
         assert_eq!(m.version, "1.2.0");
         assert_eq!(m.authors, ["Someone"]);
-        assert_eq!(m.game_versions, ["0.5.5e"]);
+        assert_eq!(m.game_versions, ["0.5.5e.hotfix1"]);
         assert_eq!(m.hook_api, Some(1));
         assert_eq!(m.after, ["other-mod"]);
         assert_eq!(m.conflicts, ["bad-mod"]);
@@ -1104,7 +1104,7 @@ role = "admin"
         let m = &p.manifest;
         assert_eq!(m.manifest_version, 2);
         assert_eq!(m.side, Side::Both);
-        assert_eq!(m.game_versions, ["0.5.5e"]);
+        assert_eq!(m.game_versions, ["0.5.5e.hotfix1"]);
         assert_eq!(m.entry_dll.as_deref(), Some("client/faster_rolls.dll"));
         assert_eq!(m.hook_api, Some(1));
         assert_eq!(m.data_tables, ["client/data"]);

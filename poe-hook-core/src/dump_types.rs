@@ -1,6 +1,6 @@
 //! Dumps the client's object-type table the first time it is used.
 //!
-//! `0x1416936c0(registry, out, key)` binary-searches a sorted array of 0x30-byte entries
+//! `0x141693840(registry, out, key)` binary-searches a sorted array of 0x30-byte entries
 //! `{u32 key, .., wchar* path at +8}` to resolve the object type key carried by the
 //! server's add-object message (0x2f7). The dump (`object_types.txt` in `<dump_dir>/client-tables/`, else next to the exe, one
 //! `key<TAB>path` per line) gives the key for each metadata path.
@@ -23,19 +23,19 @@ use ilhook::x64::{HookType, Registers};
 
 use poe_hook_shared::module::Module;
 
-// Every function address below is found by signature (`signatures/0.5.5e.toml`, names in
-// quotes); the 0.5.5e Ghidra addresses in the comments are for people only.
+// Every function address below is found by signature (`signatures/0.5.5e.hotfix1.toml`, names in
+// quotes); the Ghidra addresses in the comments are for people only.
 //
-// - `object_type_lookup` (`0x1416936c0`): the object-type lookup;
-// - `read_initial_state` (`0x141e71120`): entity initial-state reader `(entity, blob)`, logs
+// - `object_type_lookup` (`0x141693840`): the object-type lookup;
+// - `read_initial_state` (`0x141e712a0`): entity initial-state reader `(entity, blob)`, logs
 //   the entity's components;
 // - `noop_reader` (`0x14010a080`): shared `ret 0` stub used as the reader of components
 //   without initial state;
-// - `load_area_client` / `load_area_headless` (`0x14167b270`, `0x14212f500`): area loads that
+// - `load_area_client` / `load_area_headless` (`0x14167b3f0`, `0x14212f680`): area loads that
 //   generate the terrain and log "Tile hash"/"Doodad hash" (`this` in rcx). When one returns,
 //   the layout is exported for the server (`terrain_layout_<tile hash>.tsv`);
-// - `terrain_vtable` (`0x143385b10`): vtable of the area terrain object;
-// - `positioned_reader` (`0x141dd8820`): Positioned component reader: after it runs, the
+// - `terrain_vtable` (`0x143385cf0`): vtable of the area terrain object;
+// - `positioned_reader` (`0x141dd89a0`): Positioned component reader: after it runs, the
 //   terrain size is logged (the reader clamps the grid position to it).
 /// Size of an entry of the object-type table (`{u32 key, .., wchar* path at +8}`).
 const ENTRY_SIZE: usize = 0x30;
@@ -49,12 +49,12 @@ static DONE: AtomicBool = AtomicBool::new(false);
 /// (`ENTITY_UPDATE`) ran for it.
 static PLAYER: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 static PLAYER_UPDATES: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
-// More signatures: `entity_update` (`0x141e71090`, per-frame update of an awake entity
-// `(entity, dt)`), `frame_drain` (`0x1421306c0`, world frame drain `(world, f32 dt)`: applies
-// queued simulation packets, updates entities), `entity_tick` (`0x141e7d7f0`, per-entity tail
-// update in frame mode `(entity + entity.tick_base, dt)`), `set_orientation` (`0x141ddc6a0`,
+// More signatures: `entity_update` (`0x141e71210`, per-frame update of an awake entity
+// `(entity, dt)`), `frame_drain` (`0x142130840`, world frame drain `(world, f32 dt)`: applies
+// queued simulation packets, updates entities), `entity_tick` (`0x141e7d970`, per-entity tail
+// update in frame mode `(entity + entity.tick_base, dt)`), `set_orientation` (`0x141ddc820`,
 // Positioned::SetOrientation `(this, angle)`: writes the facing unless locked), `game_update`
-// (`0x14167ea40`, game update vfunc `(this, ?, f32 xmm2, f32 dt xmm3)`: adds dt to the
+// (`0x14167ebc0`, game update vfunc `(this, ?, f32 xmm2, f32 dt xmm3)`: adds dt to the
 // accumulator field, which the world update takes (and zeroes) as the frame-mode dt).
 static DRAINS: std::sync::atomic::AtomicUsize = std::sync::atomic::AtomicUsize::new(0);
 
@@ -592,7 +592,7 @@ fn track_player(entity: usize) {
                 read::<u8>(actor + 0x915).unwrap_or(0),
                 read::<u8>(actor + 0x916).unwrap_or(0)
             );
-            // Facing: Positioned +0x44c (radians, written by SetOrientation 0x141ddc6a0 unless
+            // Facing: Positioned +0x44c (radians, written by SetOrientation 0x141ddc820 unless
             // the orientation is locked, +0x1e5 bit 1); logged when it changes by > 0.05.
             let angle = read::<f32>(pos + crate::sigs::off().positioned_facing).unwrap_or(0.0);
             if (angle - f32::from_bits(last_facing.1)).abs() > 0.05 || last_facing.0 == i32::MIN {
@@ -702,7 +702,7 @@ unsafe extern "win64" fn on_read_initial_state(regs: *mut Registers, _: usize) {
                         slot(0x60),
                         slot(0x1f0)
                     );
-                    // Frame drain 0x1421306c0: +0x661 frame mode, +0x868 paused (entities
+                    // Frame drain 0x142130840: +0x661 frame mode, +0x868 paused (entities
                     // update with dt 0), +0x86a tick markers accepted; +0x11c set by 0x2f5.
                     let w = |o: usize| read::<u8>(world + o).unwrap_or(0xff);
                     log::info!(
@@ -716,7 +716,7 @@ unsafe extern "win64" fn on_read_initial_state(regs: *mut Registers, _: usize) {
                     );
                 }
                 // Render component (getter 0x140150cb0, by name): +0x39a non-zero = rendering
-                // disabled (GEAL EnableRendering clears it, then calls 0x1416a9810).
+                // disabled (GEAL EnableRendering clears it, then calls 0x1416a9990).
                 if let Some(pa) = probe() {
                     let get_render: extern "win64" fn(usize) -> usize =
                         unsafe { std::mem::transmute(pa.get_render) };
@@ -733,13 +733,13 @@ unsafe extern "win64" fn on_read_initial_state(regs: *mut Registers, _: usize) {
                         log::info!("  forced render visibility refresh");
                     }
                 }
-                // Positioned height as the client samples it (0x141de5390 returns f32 in xmm0).
+                // Positioned height as the client samples it (0x141de5510 returns f32 in xmm0).
                 if let (Some(pa), Some(pos)) = (probe(), read::<usize>(begin_components(entity))) {
                     let height: extern "win64" fn(usize) -> f32 =
                         unsafe { std::mem::transmute(pa.height) };
                     log::info!("  positioned height {}", height(pos));
                     // Terrain height samples across the map (world vfunc +0x1a8 -> terrain,
-                    // 0x141d0d420(terrain, &[x, y]) -> f32).
+                    // 0x141d0d5a0(terrain, &[x, y]) -> f32).
                     if let Some(world) = read::<usize>(entity + crate::sigs::off().entity_world) {
                         let vt = read::<usize>(world).unwrap_or(0);
                         if let Some(f) = read::<usize>(vt + crate::sigs::off().world_vt_terrain) {

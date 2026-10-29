@@ -1,5 +1,5 @@
 //! Resolves the signature table against a PE file on disk and compares the result with the
-//! table's fallback values (the 0.5.5e Ghidra addresses and struct offsets).
+//! table's fallback values (the Ghidra addresses and struct offsets).
 //!
 //! ```text
 //! cargo run --release -p poe-hook-sig --example resolve -- GameFiles/PathOfExileSteam.exe [table.toml] [--quiet]

@@ -1,6 +1,6 @@
 //! Struct offsets of the game's objects, resolved from the signature table (`[[field]]`
 //! entries, read from the operands of instructions of the client's own code) instead of being
-//! written into the DLL. The values of 0.5.5e are the table's `value` fields; the DLL never
+//! written into the DLL. The values of the supported build are the table's `value` fields; the DLL never
 //! uses them as a fallback: a field that does not resolve switches the features that list it
 //! off (`sigs::Loaded::feature_ok`).
 //!

@@ -1,6 +1,6 @@
 //! Readable code addresses: `name+0x1c` for functions we named (assets/symbols.tsv, from
-//! Ghidra and docs/re/addresses-0.5.5e.md via scripts/re/export_symbols.py) and
-//! `FUN_1420e6bc0+0x1c` for the rest. Function bounds come from the executable's `.pdata`
+//! Ghidra and docs/re/addresses.md via scripts/re/export_symbols.py) and
+//! `FUN_1420e6d40+0x1c` for the rest. Function bounds come from the executable's `.pdata`
 //! (the x64 unwind table lists every non-leaf function), so this works for any address.
 
 use std::sync::OnceLock;
