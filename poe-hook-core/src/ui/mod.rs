@@ -4,6 +4,7 @@
 mod commands_tab;
 mod coverage_tab;
 mod features_tab;
+mod follow;
 mod game_tab;
 mod gamelog_tab;
 mod hooks_tab;
@@ -18,6 +19,7 @@ mod protocol_tab;
 mod scanner_tab;
 mod server_tab;
 mod status_tab;
+pub mod theme;
 mod timing_tab;
 
 use std::{
@@ -71,14 +73,19 @@ pub struct App {
     server: server_tab::ServerView,
     commands: commands_tab::CommandsView,
     instances: instances_tab::InstancesView,
+    /// The heading font (Cinzel), when it loaded.
+    heading: Option<imgui::FontId>,
     page: Page,
+    /// The sub-page last shown per sidebar entry (an entry with tabs opens on it again).
+    last_tab: Vec<(&'static str, Page)>,
     page_search: String,
     palette_query: String,
 }
 
 impl App {
-    pub fn new() -> Self {
+    pub fn new(heading: Option<imgui::FontId>) -> Self {
         Self {
+            heading,
             log: log_tab::LogView::new(),
             packets: packets_tab::PacketsView::new(),
             coverage: coverage_tab::CoverageView::new(),
@@ -95,6 +102,7 @@ impl App {
             commands: commands_tab::CommandsView::new(),
             instances: instances_tab::InstancesView::new(),
             page: load_page(),
+            last_tab: Vec::new(),
             page_search: String::new(),
             palette_query: String::new(),
         }
@@ -112,14 +120,14 @@ impl App {
             return;
         }
         let toggle = crate::config().overlay.toggle_key;
-        ui.window("poe-hook debug##main2")
+        ui.window("poe-hook##main2")
             .size([1500.0, 780.0], Condition::FirstUseEver)
             .position([40.0, 80.0], Condition::FirstUseEver)
             .build(|| {
                 self.palette(ui);
                 let avail = ui.content_region_avail();
                 ui.child_window("nav")
-                    .size([190.0, avail[1]])
+                    .size([180.0, avail[1]])
                     .border(true)
                     .build(ui, || {
                         self.nav(ui);
@@ -132,8 +140,8 @@ impl App {
         let _ = toggle;
     }
 
-    /// The sidebar: groups and their pages (our-server-only ones hidden while read-only),
-    /// filtered by the search box.
+    /// The sidebar: groups (folding headers; Research starts folded) and their entries (our
+    /// server's group hidden while read-only). With text in the search box: the matching pages.
     fn nav(&mut self, ui: &Ui) {
         ui.set_next_item_width(-1.0);
         ui.input_text("##page_search", &mut self.page_search)
@@ -141,26 +149,69 @@ impl App {
             .build();
         ui.text_disabled("Ctrl+P: palette");
         let f = self.page_search.to_lowercase();
-        for (group, custom, pages) in GROUPS {
-            if *custom && !custom_server() {
-                continue;
-            }
-            let shown: Vec<&(Page, &str)> = pages
-                .iter()
-                .filter(|(_, n)| f.is_empty() || n.to_lowercase().contains(&f))
+        if !f.is_empty() {
+            let found: Vec<(Page, &str)> = pages()
+                .filter(|(_, p, n)| {
+                    visible(*p)
+                        && (n.to_lowercase().contains(&f)
+                            || format!("{p:?}").to_lowercase().contains(&f))
+                })
+                .map(|(_, p, n)| (p, n))
                 .collect();
-            if shown.is_empty() {
+            ui.spacing();
+            for (page, name) in found {
+                if ui
+                    .selectable_config(name)
+                    .selected(self.page == page)
+                    .build()
+                {
+                    self.go(page);
+                }
+            }
+            return;
+        }
+        for g in GROUPS {
+            if g.custom && !custom_server() {
                 continue;
             }
             ui.spacing();
-            ui.text_colored([0.6, 0.75, 1.0, 1.0], group);
-            for (page, name) in shown {
+            let here = g
+                .entries
+                .iter()
+                .any(|e| e.pages.iter().any(|(p, _)| *p == self.page));
+            let flags = if g.folded && !here {
+                imgui::TreeNodeFlags::empty()
+            } else {
+                imgui::TreeNodeFlags::DEFAULT_OPEN
+            };
+            let open = {
+                let _c = [
+                    ui.push_style_color(imgui::StyleColor::Header, [0.0; 4]),
+                    ui.push_style_color(imgui::StyleColor::HeaderHovered, theme::SURFACE_2),
+                    ui.push_style_color(imgui::StyleColor::HeaderActive, theme::SURFACE_3),
+                    ui.push_style_color(imgui::StyleColor::Text, theme::GOLD),
+                ];
+                ui.collapsing_header(g.name, flags)
+            };
+            if !open {
+                continue;
+            }
+            for e in g.entries {
+                let selected = e.pages.iter().any(|(p, _)| *p == self.page);
+                let _c =
+                    selected.then(|| ui.push_style_color(imgui::StyleColor::Text, theme::GOLD_2));
                 if ui
-                    .selectable_config(format!("  {name}"))
-                    .selected(self.page == *page)
+                    .selectable_config(format!("  {}##nav", e.name))
+                    .selected(selected)
                     .build()
+                    && !selected
                 {
-                    self.go(*page);
+                    let last = self
+                        .last_tab
+                        .iter()
+                        .find(|(n, _)| *n == e.name)
+                        .map(|(_, p)| *p);
+                    self.go(last.unwrap_or(e.pages[0].0));
                 }
             }
         }
@@ -168,7 +219,53 @@ impl App {
 
     fn go(&mut self, page: Page) {
         self.page = page;
+        if let Some(e) = entry_of(page) {
+            match self.last_tab.iter_mut().find(|(n, _)| *n == e.name) {
+                Some(slot) => slot.1 = page,
+                None => self.last_tab.push((e.name, page)),
+            }
+        }
         save_page(page);
+    }
+
+    /// The page's heading and, for an entry with several pages, its tabs.
+    fn page_head(&mut self, ui: &Ui) {
+        let Some(e) = entry_of(self.page) else {
+            return;
+        };
+        theme::heading(ui, self.heading, e.name);
+        if e.pages.len() > 1 {
+            let mut first = true;
+            for (page, name) in e.pages {
+                if !first {
+                    ui.same_line();
+                }
+                first = false;
+                let on = *page == self.page;
+                let w = ui.calc_text_size(name)[0] + 20.0;
+                let _c = [
+                    ui.push_style_color(
+                        imgui::StyleColor::Text,
+                        if on { theme::GOLD_2 } else { theme::MUTED },
+                    ),
+                    ui.push_style_color(
+                        imgui::StyleColor::Header,
+                        theme::with_alpha(theme::CRIMSON, 0.4),
+                    ),
+                ];
+                if ui
+                    .selectable_config(format!("{name}##tab"))
+                    .selected(on)
+                    .size([w, 0.0])
+                    .build()
+                    && !on
+                {
+                    self.go(*page);
+                }
+            }
+        }
+        ui.separator();
+        ui.spacing();
     }
 
     fn draw_page(&mut self, ui: &Ui, plots: &dear_implot::PlotContext) {
@@ -176,6 +273,7 @@ impl App {
         if page_is_custom(self.page) && !custom_server() {
             self.page = Page::Status;
         }
+        self.page_head(ui);
         match self.page {
             Page::Status => status_tab::draw(ui),
             Page::Log => self.log.draw(ui),
@@ -226,18 +324,24 @@ impl App {
         let first_word = q.split_whitespace().next().unwrap_or("").to_string();
         let mut chosen: Option<PaletteItem> = None;
         let mut first: Option<PaletteItem> = None;
-        for (_, custom, pages) in GROUPS {
-            if *custom && !custom_server() {
+        for (entry, page, name) in pages() {
+            if !visible(page) {
                 continue;
             }
-            for (page, name) in pages.iter() {
-                if !q.is_empty() && !name.to_lowercase().contains(&q) {
-                    continue;
-                }
-                first.get_or_insert(PaletteItem::Page(*page));
-                if ui.selectable(format!("Page: {name}")) {
-                    chosen = Some(PaletteItem::Page(*page));
-                }
+            if !q.is_empty()
+                && !name.to_lowercase().contains(&q)
+                && !entry.to_lowercase().contains(&q)
+            {
+                continue;
+            }
+            first.get_or_insert(PaletteItem::Page(page));
+            let label = if entry == name {
+                format!("Page: {name}")
+            } else {
+                format!("Page: {entry} / {name}")
+            };
+            if ui.selectable(label) {
+                chosen = Some(PaletteItem::Page(page));
             }
         }
         if custom_server() {
@@ -335,62 +439,135 @@ enum Page {
     Features,
 }
 
-/// Sidebar groups: name, our server only, pages.
-const GROUPS: &[(&str, bool, &[(Page, &str)])] = &[
-    (
-        "HOME",
-        false,
-        &[
-            (Page::Status, "Status"),
-            (Page::Log, "Log"),
-            (Page::GameLog, "Game log"),
+/// A sidebar entry: its pages show as tabs when there are several.
+struct Entry {
+    name: &'static str,
+    pages: &'static [(Page, &'static str)],
+}
+
+/// A sidebar group: a folding header.
+struct Group {
+    name: &'static str,
+    /// Pages of our server only (hidden while read-only).
+    custom: bool,
+    /// Starts folded (the research tools).
+    folded: bool,
+    entries: &'static [Entry],
+}
+
+const GROUPS: &[Group] = &[
+    Group {
+        name: "PLAY",
+        custom: false,
+        folded: false,
+        entries: &[
+            Entry {
+                name: "Status",
+                pages: &[(Page::Status, "Status")],
+            },
+            Entry {
+                name: "Game",
+                pages: &[
+                    (Page::Player, "Player"),
+                    (Page::Stats, "Stats"),
+                    (Page::Actions, "Actions"),
+                    (Page::Entities, "Entities"),
+                    (Page::Watches, "Watches"),
+                ],
+            },
+            Entry {
+                name: "Minimap",
+                pages: &[(Page::Minimap, "Minimap")],
+            },
         ],
-    ),
-    (
-        "SERVER",
-        true,
-        &[
-            (Page::Instances, "Instances"),
-            (Page::Commands, "Commands"),
-            (Page::Server, "Sync state"),
-            (Page::Desync, "Desync"),
+    },
+    Group {
+        name: "SERVER",
+        custom: true,
+        folded: false,
+        entries: &[
+            Entry {
+                name: "Instances",
+                pages: &[(Page::Instances, "Instances")],
+            },
+            Entry {
+                name: "Commands",
+                pages: &[(Page::Commands, "Commands")],
+            },
+            Entry {
+                name: "Sync",
+                pages: &[(Page::Server, "Sync state"), (Page::Desync, "Desync")],
+            },
         ],
-    ),
-    (
-        "NETWORK",
-        false,
-        &[
-            (Page::Packets, "Packets"),
-            (Page::Protocol, "Protocol"),
-            (Page::Coverage, "Coverage"),
-            (Page::Notes, "Notes"),
-            (Page::Timing, "Timing"),
+    },
+    Group {
+        name: "LOGS",
+        custom: false,
+        folded: false,
+        entries: &[Entry {
+            name: "Live logs",
+            pages: &[(Page::Log, "Log"), (Page::GameLog, "Game log")],
+        }],
+    },
+    Group {
+        name: "RESEARCH",
+        custom: false,
+        folded: true,
+        entries: &[
+            Entry {
+                name: "Network",
+                pages: &[
+                    (Page::Packets, "Packets"),
+                    (Page::Protocol, "Protocol"),
+                    (Page::Coverage, "Coverage"),
+                    (Page::Notes, "Notes"),
+                    (Page::Timing, "Timing"),
+                ],
+            },
+            Entry {
+                name: "RE tools",
+                pages: &[(Page::Scanner, "Scanner"), (Page::Hooks, "Hooks")],
+            },
         ],
-    ),
-    (
-        "GAME",
-        false,
-        &[
-            (Page::Player, "Player"),
-            (Page::Stats, "Stats"),
-            (Page::Actions, "Actions"),
-            (Page::Entities, "Entities"),
-            (Page::Watches, "Watches"),
-            (Page::Minimap, "Minimap"),
-        ],
-    ),
-    (
-        "RE TOOLS",
-        false,
-        &[(Page::Scanner, "Scanner"), (Page::Hooks, "Hooks")],
-    ),
-    ("SETTINGS", false, &[(Page::Features, "Features")]),
+    },
+    Group {
+        name: "SETTINGS",
+        custom: false,
+        folded: false,
+        entries: &[Entry {
+            name: "Features",
+            pages: &[(Page::Features, "Features")],
+        }],
+    },
 ];
 
-fn page_is_custom(page: Page) -> bool {
+/// Every page with its entry's name and its own name, in sidebar order.
+fn pages() -> impl Iterator<Item = (&'static str, Page, &'static str)> {
     GROUPS
         .iter()
-        .any(|(_, custom, pages)| *custom && pages.iter().any(|(p, _)| *p == page))
+        .flat_map(|g| g.entries.iter())
+        .flat_map(|e| e.pages.iter().map(move |(p, n)| (e.name, *p, *n)))
+}
+
+fn entry_of(page: Page) -> Option<&'static Entry> {
+    GROUPS
+        .iter()
+        .flat_map(|g| g.entries.iter())
+        .find(|e| e.pages.iter().any(|(p, _)| *p == page))
+}
+
+fn page_is_custom(page: Page) -> bool {
+    GROUPS.iter().any(|g| {
+        g.custom
+            && g.entries
+                .iter()
+                .any(|e| e.pages.iter().any(|(p, _)| *p == page))
+    })
+}
+
+/// Whether the page may be shown now (our server's pages only while on our server).
+fn visible(page: Page) -> bool {
+    !page_is_custom(page) || custom_server()
 }
 
 fn page_path() -> std::path::PathBuf {
@@ -407,10 +584,8 @@ fn save_page(page: Page) {
 /// The page selected last time (kept across sessions).
 fn load_page() -> Page {
     let name = std::fs::read_to_string(page_path()).unwrap_or_default();
-    GROUPS
-        .iter()
-        .flat_map(|(_, _, pages)| pages.iter())
-        .map(|(p, _)| *p)
+    pages()
+        .map(|(_, p, _)| p)
         .find(|p| format!("{p:?}") == name.trim())
         .unwrap_or(Page::Status)
 }
@@ -454,7 +629,7 @@ fn badge(ui: &Ui) {
         )
         .bg_alpha(0.75)
         .build(|| {
-            ui.text_colored([1.0, 0.75, 0.2, 1.0], BADGE);
+            ui.text_colored(theme::WARN, BADGE);
         });
 }
 
@@ -488,4 +663,48 @@ fn notices(ui: &Ui) {
                 ui.text(s);
             }
         });
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn every_page_is_in_the_sidebar_once() {
+        let all = [
+            Page::Status,
+            Page::Log,
+            Page::GameLog,
+            Page::Instances,
+            Page::Commands,
+            Page::Server,
+            Page::Desync,
+            Page::Packets,
+            Page::Protocol,
+            Page::Coverage,
+            Page::Notes,
+            Page::Timing,
+            Page::Player,
+            Page::Stats,
+            Page::Actions,
+            Page::Entities,
+            Page::Watches,
+            Page::Minimap,
+            Page::Scanner,
+            Page::Hooks,
+            Page::Features,
+        ];
+        for p in all {
+            assert_eq!(pages().filter(|(_, q, _)| *q == p).count(), 1, "{p:?}");
+        }
+        assert_eq!(pages().count(), all.len());
+    }
+
+    #[test]
+    fn groups_fold_and_hide_as_agreed() {
+        assert!(GROUPS.iter().find(|g| g.name == "RESEARCH").unwrap().folded);
+        assert!(page_is_custom(Page::Desync));
+        assert!(!page_is_custom(Page::Log));
+        assert_eq!(entry_of(Page::GameLog).unwrap().name, "Live logs");
+    }
 }

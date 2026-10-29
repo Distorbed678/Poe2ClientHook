@@ -80,7 +80,8 @@ pub fn set_visible(v: bool) {
     VISIBLE.store(v, Ordering::SeqCst);
 }
 
-fn create_context() -> imgui::Context {
+/// The context, and the heading font (Cinzel) when it loaded.
+fn create_context() -> (imgui::Context, Option<imgui::FontId>) {
     let cfg = &crate::config().overlay;
     let mut ctx = imgui::Context::create();
     ctx.set_ini_filename(Some(
@@ -98,8 +99,23 @@ fn create_context() -> imgui::Context {
         }
         Err(e) => log::warn!("overlay font: {e:?}"),
     }
+    let mut heading = None;
+    // Headings: Cinzel (SIL OFL, assets/Cinzel-OFL.txt), the launcher's heading font.
+    match imgui::StbTrueTypeFontData::from_slice(include_bytes!("../../assets/Cinzel.ttf")) {
+        Ok(data) => {
+            let id = ctx
+                .font_atlas()
+                .add_font(&[imgui::FontSource::stb_truetype_with_size(
+                    data,
+                    (size * 1.1).round(),
+                )]);
+            heading = Some(id);
+        }
+        Err(e) => log::warn!("overlay heading font: {e:?}"),
+    }
+    crate::ui::theme::apply(ctx.style_mut());
     ctx.style_mut().scale_all_sizes(cfg.scale);
-    ctx
+    (ctx, heading)
 }
 
 /// `vkQueuePresentKHR` callback (any of the game's present threads).
@@ -205,12 +221,12 @@ fn frame(
     if overlay.is_none() {
         match gpu::Gpu::new(state, vk::Queue::from_raw(queue)) {
             Ok(gpu) => {
-                let ctx = create_context();
+                let (ctx, heading) = create_context();
                 *overlay = Some(Overlay {
                     gpu,
                     plots: dear_implot::PlotContext::create(&ctx),
                     ctx,
-                    app: App::new(),
+                    app: App::new(heading),
                     last: Instant::now(),
                 })
             }

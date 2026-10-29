@@ -140,4 +140,4 @@ Security issues: [SECURITY.md](SECURITY.md). Contributing: [CONTRIBUTING.md](htt
 
 ## License
 
-MIT: [LICENSE](LICENSE). Copyright (c) 2026 Distorbed678 and contributors. `poe-hook-core/assets/` holds the DejaVu Sans Mono font under its own license (`DejaVu-LICENSE.txt` next to it, see also [NOTICE](NOTICE)).
+MIT: [LICENSE](LICENSE). Copyright (c) 2026 Distorbed678 and contributors. `poe-hook-core/assets/` holds the DejaVu Sans Mono font under its own license (`DejaVu-LICENSE.txt` next to it) and the Cinzel font under the SIL Open Font License (`Cinzel-OFL.txt`), see also [NOTICE](NOTICE).

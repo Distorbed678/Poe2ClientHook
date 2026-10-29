@@ -5,6 +5,8 @@ Third-party material shipped in this repository:
 
 - DejaVu Sans Mono (poe-hook-core/assets/DejaVuSansMono.ttf): Bitstream Vera and DejaVu
   fonts license, see poe-hook-core/assets/DejaVu-LICENSE.txt. Used by the debug overlay.
+- Cinzel (poe-hook-core/assets/Cinzel.ttf, Copyright 2020 The Cinzel Project Authors): SIL Open
+  Font License 1.1, see poe-hook-core/assets/Cinzel-OFL.txt. Headings of the debug overlay.
 
 Rust dependencies keep their own licenses (see Cargo.lock and each crate's metadata).
 

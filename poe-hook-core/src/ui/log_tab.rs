@@ -3,6 +3,8 @@
 
 use imgui::{ListClipper, Ui};
 
+use super::follow::Follow;
+
 const KEEP: usize = 50_000;
 
 struct Rec {
@@ -15,7 +17,7 @@ pub struct LogView {
     next: u64,
     filter: String,
     levels: [bool; 5],
-    follow: bool,
+    follow: Follow,
     /// Indices into `records` that pass the filter (rebuilt when it changes).
     shown: Vec<usize>,
     shown_for: (String, [bool; 5]),
@@ -29,7 +31,7 @@ impl LogView {
             next: 0,
             filter: String::new(),
             levels: [true, true, true, true, false],
-            follow: true,
+            follow: Follow::new(),
             shown: Vec::new(),
             shown_for: (String::new(), [true, true, true, true, false]),
             shown_upto: 0,
@@ -94,7 +96,14 @@ impl LogView {
             ui.checkbox(name, &mut self.levels[i]);
         }
         ui.same_line();
-        ui.checkbox("Follow", &mut self.follow);
+        let mut follow = self.follow.following();
+        if ui.checkbox("Follow", &mut follow) {
+            if follow {
+                self.follow.jump();
+            } else {
+                self.follow.pause(self.shown.len());
+            }
+        }
         ui.same_line();
         if ui.button("Copy shown") {
             let text: Vec<&str> = self
@@ -114,22 +123,21 @@ impl LogView {
         ui.child_window("log_lines")
             .flags(imgui::WindowFlags::HORIZONTAL_SCROLLBAR)
             .build(ui, || {
+                self.follow.begin(ui, self.shown.len());
                 let mut clipper = ListClipper::new(self.shown.len()).begin(ui);
                 while clipper.step() {
                     for row in clipper.display_start()..clipper.display_end() {
                         let r = &self.records[self.shown[row as usize]];
                         let color = match r.level {
-                            1 => [1.0, 0.35, 0.35, 1.0],
-                            2 => [1.0, 0.8, 0.3, 1.0],
-                            4 | 5 => [0.65, 0.65, 0.65, 1.0],
-                            _ => [0.92, 0.92, 0.92, 1.0],
+                            1 => super::theme::DANGER,
+                            2 => super::theme::WARN,
+                            4 | 5 => super::theme::MUTED,
+                            _ => super::theme::TEXT,
                         };
                         ui.text_colored(color, &r.line);
                     }
                 }
-                if self.follow && ui.scroll_y() >= ui.scroll_max_y() - 40.0 {
-                    ui.set_scroll_here_y(1.0);
-                }
+                self.follow.end(ui, self.shown.len());
             });
     }
 }

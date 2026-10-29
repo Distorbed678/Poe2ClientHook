@@ -2,29 +2,38 @@
 
 use imgui::{ListClipper, Ui};
 
+use super::follow::Follow;
+
 pub struct GameLogView {
     filter: String,
-    follow: bool,
+    follow: Follow,
 }
 
 impl GameLogView {
     pub fn new() -> Self {
         Self {
             filter: String::new(),
-            follow: true,
+            follow: Follow::new(),
         }
     }
 
     pub fn draw(&mut self, ui: &Ui) {
         ui.set_next_item_width(320.0);
         ui.input_text("Filter##gamelog", &mut self.filter).build();
-        ui.same_line();
-        ui.checkbox("Follow##gamelog", &mut self.follow);
         let f = self.filter.to_lowercase();
         let lines: Vec<String> = crate::gamelog::lines()
             .into_iter()
             .filter(|l| f.is_empty() || l.to_lowercase().contains(&f))
             .collect();
+        ui.same_line();
+        let mut follow = self.follow.following();
+        if ui.checkbox("Follow##gamelog", &mut follow) {
+            if follow {
+                self.follow.jump();
+            } else {
+                self.follow.pause(lines.len());
+            }
+        }
         ui.text_disabled(format!(
             "{} lines (logs/Client.txt, this process)",
             lines.len()
@@ -32,23 +41,22 @@ impl GameLogView {
         ui.child_window("gamelog_lines")
             .flags(imgui::WindowFlags::HORIZONTAL_SCROLLBAR)
             .build(ui, || {
+                self.follow.begin(ui, lines.len());
                 let mut clipper = ListClipper::new(lines.len()).begin(ui);
                 while clipper.step() {
                     for i in clipper.display_start()..clipper.display_end() {
                         let l = &lines[i as usize];
                         let color = if l.contains("[CRIT") || l.contains("[ERROR") {
-                            [1.0, 0.4, 0.4, 1.0]
+                            super::theme::DANGER
                         } else if l.contains("[WARN") {
-                            [1.0, 0.8, 0.3, 1.0]
+                            super::theme::WARN
                         } else {
-                            [0.9, 0.9, 0.9, 1.0]
+                            super::theme::TEXT
                         };
                         ui.text_colored(color, l);
                     }
                 }
-                if self.follow && ui.scroll_y() >= ui.scroll_max_y() - 40.0 {
-                    ui.set_scroll_here_y(1.0);
-                }
+                self.follow.end(ui, lines.len());
             });
     }
 }
