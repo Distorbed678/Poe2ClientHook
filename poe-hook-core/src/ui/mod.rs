@@ -185,12 +185,12 @@ impl App {
                 imgui::TreeNodeFlags::DEFAULT_OPEN
             };
             let open = {
-                let _c = [
-                    ui.push_style_color(imgui::StyleColor::Header, [0.0; 4]),
-                    ui.push_style_color(imgui::StyleColor::HeaderHovered, theme::SURFACE_2),
-                    ui.push_style_color(imgui::StyleColor::HeaderActive, theme::SURFACE_3),
-                    ui.push_style_color(imgui::StyleColor::Text, theme::GOLD),
-                ];
+                // Separate bindings: tokens drop in reverse order (an array would drop them
+                // first-to-last, which ImGui's scope check refuses).
+                let _c0 = ui.push_style_color(imgui::StyleColor::Header, [0.0; 4]);
+                let _c1 = ui.push_style_color(imgui::StyleColor::HeaderHovered, theme::SURFACE_2);
+                let _c2 = ui.push_style_color(imgui::StyleColor::HeaderActive, theme::SURFACE_3);
+                let _c3 = ui.push_style_color(imgui::StyleColor::Text, theme::GOLD);
                 ui.collapsing_header(g.name, flags)
             };
             if !open {
@@ -243,16 +243,16 @@ impl App {
                 first = false;
                 let on = *page == self.page;
                 let w = ui.calc_text_size(name)[0] + 20.0;
-                let _c = [
-                    ui.push_style_color(
-                        imgui::StyleColor::Text,
-                        if on { theme::GOLD_2 } else { theme::MUTED },
-                    ),
-                    ui.push_style_color(
-                        imgui::StyleColor::Header,
-                        theme::with_alpha(theme::CRIMSON, 0.4),
-                    ),
-                ];
+                // Separate bindings: tokens drop in reverse order (an array would drop them
+                // first-to-last, which ImGui's scope check refuses).
+                let _c0 = ui.push_style_color(
+                    imgui::StyleColor::Text,
+                    if on { theme::GOLD_2 } else { theme::MUTED },
+                );
+                let _c1 = ui.push_style_color(
+                    imgui::StyleColor::Header,
+                    theme::with_alpha(theme::CRIMSON, 0.4),
+                );
                 if ui
                     .selectable_config(format!("{name}##tab"))
                     .selected(on)

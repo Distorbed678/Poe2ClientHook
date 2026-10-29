@@ -97,11 +97,11 @@ impl Follow {
             ui.scroll_x() + (w - tw - 22.0).max(0.0),
             ui.scroll_y() + (h - bh - 18.0).max(0.0),
         ]);
-        let _c = [
-            ui.push_style_color(imgui::StyleColor::Button, super::theme::SURFACE_2),
-            ui.push_style_color(imgui::StyleColor::Border, super::theme::GOLD),
-            ui.push_style_color(imgui::StyleColor::Text, super::theme::GOLD_2),
-        ];
+        // Separate bindings: tokens drop in reverse order (an array would drop them
+        // first-to-last, which ImGui's scope check refuses).
+        let _c0 = ui.push_style_color(imgui::StyleColor::Button, super::theme::SURFACE_2);
+        let _c1 = ui.push_style_color(imgui::StyleColor::Border, super::theme::GOLD);
+        let _c2 = ui.push_style_color(imgui::StyleColor::Text, super::theme::GOLD_2);
         let _b = ui.push_style_var(imgui::StyleVar::FrameBorderSize(1.0));
         if ui.button_with_size(&label, [tw, bh]) {
             self.held = false;
