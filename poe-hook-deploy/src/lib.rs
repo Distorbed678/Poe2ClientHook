@@ -10,7 +10,7 @@
 //! 2. installs `version.dll` (the loader) and `poe_hook_core.dll` (the hot-reloadable core);
 //! 3. creates `poe-hook.toml` from the built-in template if it does not exist yet (edits survive
 //!    redeploys) and sets `mode`, `login_mode`, `trusted_servers`, `position_sync_port`,
-//!    `dump_dir`, `auto_keys` in it (official mode: `login_mode = "steam"` and no trusted
+//!    `dump_dir`, `register_url`, `auto_keys` in it (official mode: `login_mode = "steam"` and no trusted
 //!    servers, whatever the options say);
 //! 4. writes `steam_appid.txt`.
 //!
@@ -111,6 +111,10 @@ pub struct DeployOptions {
     /// loopback (not blocked, no read-only latch, crypto bypass). Host names are resolved to
     /// IPv4 here ([`resolve_trusted_servers`]). Ignored (written empty) in [`Mode::Official`].
     pub trusted_servers: Vec<String>,
+    /// `register_url` for [`Mode::Private`]: the server's page for new accounts, opened by the
+    /// login screen's "Create account" button. `None` (and always in [`Mode::Official`]) writes
+    /// an empty value: the button is left alone.
+    pub register_url: Option<String>,
 }
 
 /// What [`deploy`] did, for the caller's log.
@@ -184,6 +188,15 @@ pub fn deploy(opts: &DeployOptions) -> Result<DeployReport> {
     )?;
     report.login_mode = Some(login_mode);
     report.trusted_servers = trusted;
+    let register = match opts.mode {
+        Mode::Official => None,
+        Mode::Private => opts
+            .register_url
+            .as_deref()
+            .map(str::trim)
+            .filter(|u| (u.starts_with("http://") || u.starts_with("https://")) && !u.contains(['"', '\\', '\n'])),
+    };
+    set_hook_key(&cfg, None, "register_url", &format!("\"{}\"", register.unwrap_or("")))?;
     if let Some(port) = opts.position_sync_port {
         set_hook_key(
             &cfg,

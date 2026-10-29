@@ -25,6 +25,10 @@ login_mode = "standalone"
 # connects to (login and instance server). Anything else is an official/external server and stays
 # read-only. Always empty in official mode. Written by `cargo xtask deploy-client`.
 trusted_servers = []
+# The private server's page for new accounts, opened by the login screen's "Create account"
+# button instead of the official site (written by the launcher at Play). Empty: the button is
+# left alone. Never used in official mode.
+register_url = ""
 
 [log]
 # error | warn | info | debug | trace

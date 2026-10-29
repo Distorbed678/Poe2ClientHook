@@ -13,6 +13,7 @@ mod login_patch;
 mod logsink;
 mod mods;
 mod proxy;
+mod register_link;
 mod vulkan;
 mod window;
 
@@ -65,6 +66,7 @@ pub extern "system" fn DllMain(_module: HINSTANCE, reason: u32, _reserved: *mut 
             Ok(()) => log::info!("network guard: enabled"),
             Err(e) => log::error!("network guard: failed: {e}"),
         }
+        register_link::init(config.register_url.clone());
         // Before the client's first platform query (its entry point runs after every static
         // import, this DLL included, has been initialised).
         login_patch::apply(&main, config.login_mode);

@@ -27,6 +27,11 @@ pub struct Config {
     /// `<repo>/dumps/<version>`. Unset: the old locations (next to the exe, in the session
     /// folder).
     pub dump_dir: Option<std::path::PathBuf>,
+    /// The private server's page for new accounts (`http(s)://<server>/#/register`), written by
+    /// the launcher at Play. The login screen's "Create account" button opens it instead of the
+    /// official site (see [`crate::register_link`]). Unset, and always in official mode: the
+    /// button is left alone.
+    pub register_url: Option<String>,
     pub log: LogConfig,
     pub features: FeatureConfig,
     pub overlay: OverlayConfig,
@@ -254,6 +259,7 @@ impl Config {
             self.login_mode = LoginMode::Steam;
             self.trusted_servers.clear();
             self.gen_batch.enabled = false;
+            self.register_url = None;
         }
     }
 
@@ -321,12 +327,13 @@ mod tests {
     #[test]
     fn official_mode_forces_steam_and_drops_trusted_servers() {
         let c = Config::from_toml(
-            "mode = \"official\"\nlogin_mode = \"standalone\"\ntrusted_servers = [\"8.8.8.8:443\"]\n",
+            "mode = \"official\"\nlogin_mode = \"standalone\"\ntrusted_servers = [\"8.8.8.8:443\"]\nregister_url = \"http://x/#/register\"\n",
         )
         .unwrap();
         assert!(c.official());
         assert_eq!(c.login_mode, LoginMode::Steam);
         assert!(c.trusted_servers.is_empty());
+        assert!(c.register_url.is_none(), "the official button is never redirected");
     }
 
     #[test]

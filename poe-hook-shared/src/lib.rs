@@ -11,6 +11,7 @@ pub mod module;
 pub mod netguard;
 pub mod offsets;
 pub mod redact;
+pub mod register_link;
 pub mod sidechannel;
 pub mod sigs;
 pub mod trust;

@@ -120,6 +120,11 @@ Also public: `resolve_trusted_servers`, `set_hook_key`, `hook_path`, `gateway::s
   `poe_hook_shared::trust::is_trusted` is the one decision used by the network guard (refuse / latch), `Connection::external`
   (`= !trusted`), the crypto bypass and the overlay's `custom_server()`. A trusted server is neither refused by
   `block_external` nor latches read-only and gets the crypto bypass; every other remote stays read-only exactly as before.
+- `register_url = "http(s)://<server>/#/register"` (written by the launcher at Play; empty in official mode). The login
+  screen's "Create account" button opens `https://<official host>/account/create?theme=poe2` with `ShellExecuteW`; the
+  loader hooks that shell32 export (no game address or signature) and opens the private server's register page instead.
+  Only account-page URLs are swapped, never while the read-only latch is on (`poe-hook/src/register_link.rs`, decision in
+  `poe-hook-shared/src/register_link.rs`).
 
 ## Batch terrain generation (`gen_batch`)
 

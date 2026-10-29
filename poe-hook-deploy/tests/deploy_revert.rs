@@ -34,6 +34,7 @@ fn deploy_then_revert_restores_the_game_dir() {
             "192.168.1.20:6112".into(),
             "192.168.1.20:6112".into(),
         ],
+        register_url: Some("http://192.168.1.20:8080/#/register".into()),
     };
     let report = deploy(&opts).unwrap();
     assert_eq!(
@@ -56,6 +57,7 @@ fn deploy_then_revert_restores_the_game_dir() {
     assert!(cfg.contains("dump_dir = '"));
     assert!(cfg.contains("login_mode = \"standalone\""));
     assert!(cfg.contains("trusted_servers = [\"192.168.1.20:20481\", \"192.168.1.20:6112\"]"));
+    assert!(cfg.contains("register_url = \"http://192.168.1.20:8080/#/register\""), "{cfg}");
     assert_eq!(report.trusted_servers.len(), 2);
     let table = toml_parses(&cfg);
     assert_eq!(table["login_mode"].as_str(), Some("standalone"));
@@ -89,6 +91,7 @@ fn deploy_then_revert_restores_the_game_dir() {
     assert!(cfg.contains("mode = \"official\""));
     assert!(cfg.contains("login_mode = \"steam\""));
     assert!(cfg.contains("trusted_servers = []"));
+    assert!(cfg.contains("register_url = \"\""), "never redirected in official mode");
     assert!(!cfg.contains("192.168.1.20"));
     let table = toml_parses(&cfg);
     assert_eq!(table["trusted_servers"].as_array().unwrap().len(), 0);
@@ -144,6 +147,7 @@ fn private_deploy_can_switch_back_to_the_steam_login() {
         dump_dir: None,
         login_mode: LoginMode::Steam,
         trusted_servers: vec!["not an address:1".into()],
+        register_url: None,
     };
     let report = deploy(&opts).unwrap();
     assert_eq!(report.warnings.len(), 1);
