@@ -4,36 +4,69 @@
 140108080	do_is
 140108720	`scalar_deleting_destructor'
 14010a080	_guard_check_icall
+140110960	
+140110d60	CmdLine_BuildOptionTable
+1401162d0	StandalonePatcher_Run
+140117c40	CmdLine_ReadSuccessEvent
+14011b820	Client_Startup
 14013fbc0	FID_conflict:`scalar_deleting_destructor'
 14013fc60	FID_conflict:`scalar_deleting_destructor'
 14013fec0	FID_conflict:`scalar_deleting_destructor'
 140140c00	~sentry
 140150cb0	get Render component by name
 1401620a0	`scalar_deleting_destructor'
+14016ba40	AimReport_Tick: per frame, AimTarget mode 2/3 via 0x14016b820 (33 ms) only while
 14016e780	C→S 0x2e6 sender (u8 player, u8)
 1401b6940	chat join timeout message ("Timeout while joining {0} chat")
+140223710	world_areas_table
 140286850	Data/Balance/Hideouts.dat table getter
+1402c3cb0	TradeInvite_OnTradeState
+1402c3fb0	TradeInvite_ShowPopup
 1402c4980	escape menu construction ("Get Full Access" button when +0x3edc is clear)
 1402c76b0	escape menu buttons: +0x2f0 exit to log in screen (logout 0), +0x2f8 exit game (
 140489040	`scalar_deleting_destructor'
+1406b8460	SelectScreen_SetEntryPortraitFrame
+1406b9b90	SelectScreen_SetEntry
+1406c19a0	
 140757aa0	`scalar_deleting_destructor'
 14086d970	`scalar_deleting_destructor'
 14086da70	`scalar_deleting_destructor'
+1408719a0	stream varuint reader (the 0x2f9 ComponentDelta length)
 1408a2c10	`scalar_deleting_destructor'
 1408a2e40	`scalar_deleting_destructor'
+140c9eee0	PartyInvitePopup_Decline
+140c9ef70	PartyInvitePopup_Accept
 140e7ca80	league banners at character creation (entries with +0xe0 bit 7, not variants; va
+140ec7700	
 140ec82e0	create screen: connects to the login connection's signals (+0xb08 → 0x140ed2ab0,
 140ece3e0	create screen Continue/Create button (needs a selected league: +0x320, +0x318)
 140ece810	sends CreateCharacter (0x1420e9ce0); do not hook its entry, the trace hook crash
 140ecee50	"character_creation_done": finds the new character by name (0x140ec8b20), sends 
 140ecf5d0	create screen per-frame update: scene done with +0x390 and +0x392 → 0x140ecee50
-140ed2ab0	create result callback (u16 result): 0 → +0x392, creation scene (0x140ececc0, se
+140ed2ab0	CreateCharacterState_OnCharacterCreated
 140ed4e50	create screen key handler (Space skips the creation scene)
+140ed8149	
 140ed8710	delete-character screen result callback
 140ee79c0	gateway list loader
+140ee8cb0	LoginState_BuildUi_SelectLoginScreen
+140ef07d0	LoginState_SaveLoginAfterAuth
+140ef3530	LoginState_TokenLogin7or8
+140ef4410	LoginState_StandaloneLogin
+140ef4c90	LoginState_StartAuthentication
+140ef5140	LoginState_AuthenticationResultHandler
+140ef63a0	LoginState_HandleAuthenticationError
+140ef9ec0	LoginState_OnSteamEncryptedAppTicket
+140effac0	
+140f05b20	SelectScreen_ShowWidgets
+140f0c090	SelectScreen_OnCharacterDetails
+140f0f600	SelectScreen_UpdateStrictUnlockBanner
+140feb9c0	PartyInvite_OnReceived_ShowPopup
+140febbe0	
+141018370	
 14101d490	`scalar_deleting_destructor'
 1410264d0	Vulkan loader
 14103c3b0	`scalar_deleting_destructor'
+141050c30	Window_CreateMain_POEWindowClass
 14119eb30	`scalar_deleting_destructor'
 1411ac2a0	`scalar_deleting_destructor'
 1411ac880	`scalar_deleting_destructor'
@@ -53,32 +86,62 @@
 141408900	`scalar_deleting_destructor'
 141416e40	`scalar_deleting_destructor'
 14160be40	`scalar_deleting_destructor'
+14167d470	world_construct_client
 1416a9990	Render: apply visibility to the AO scene node (+0x39a disabled flag)
+14171cdf0	Player_SimulationHandler
 1418a21b0	`scalar_deleting_destructor'
 141924100	GEAL EnableRendering lambda body
 141939fc0	[NETWORKING] networking_type option reader
+14197eb10	Action_GetSpeedAccelerationPerSecond
 1419ddb20	`scalar_deleting_destructor'
+141aa8500	DodgeRoll_OnStart
 141aa9250	dodge_roll_travel_distance getter
-141b76da0	end of a dodge roll: decides whether it carries on as a sprint
+141b76da0	
 141b7ab40	`scalar_deleting_destructor'
+141b8bda0	DodgeRoll_InitHeading
 141b8dc50	`scalar_deleting_destructor'
+141d0df50	
 141d24690	`scalar_deleting_destructor'
 141d43b60	animation controller: play animation (index, …)
 141d5d010	`scalar_deleting_destructor'
-141dccfa0	movement speed getter (base × movement_velocity_+permyriad × virtual_action_spee
+141d72a90	Buff_ReadBody
+141d82bc0	InventoriesComponent_Read
+141db5080	BuffsComponent_Read
+141dc7d00	
+141dccfa0	Pathfinding_GetSpeed
+141dcd130	Pathfinding_SetSpeedMultiplier
 141dcd1a0	Pathfinding component constructor (+0x550 base speed, +0x55c multiplier)
+141dcf4a0	PlayerComponent_Read
+141dd43f0	Player_ApplyServerSkillUse
+141dd4550	Player_ApplyServerSkillTarget
+141dd46a0	Player_ClearHeldSkill
+141dd4790	Player_ApplyServerSkillRelease
+141dd4960	Player vfunc +0x138: set combat stance (+0x20d); +0x20c is the networked byte
 141dd89a0	Positioned initial data (facing +0x44c, flags0 bit 7 → lock)
 141dda7c0	Positioned simulation handler: 0x1dd/0x1de position, **0x1df SetOrientation (f32
 141ddb6f0	SetLocationForcedNoCallbacks (moves an entity to a cell)
 141ddc820	Positioned::SetOrientation(angle): writes +0x44c (radians, atan2(dy, dx) + π/2) 
-141de31a0	movement step: turns the entity toward its path (orientation mode +0x1e3 or the 
+141de31a0	Positioned_MoveToWaypoint
 141dfa4a0	StateMachine reader (shared-state count check)
-141e4dfa0	movement reset / stat listener: stops Move when Actor +0x2a1 bit 2 is set
-141e4fb40	start WASD walking: a Move action (skill 0x20002909) toward cell + input vector
+141e42040	Actor_ApplyActionSpeedFactor
+141e4dfa0	
+141e4fb40	Actor_StartWasdWalk
 141e53630	Actor RecalculateStance ("Aiming", "AimingUpwards", "Ranged", "Mounted", "Unarme
 141e5d610	Actor "is sprinting": Actor +0x915 or the stat is_sprinting
+141e712a0	Entity_ReadInitialState
+141e715a0	Entity_ReadLinkRecords
+141e717a0	Entity_Destroy
 141e72a00	object registry insert ("Replacing awake/asleep/deleted object")
+141e7eb50	LinkRecord_ReadValues
 141e892b0	create an action from an actor skill
+141ece070	
+141ece1d0	
+141ed0510	Pathfinder_Plan
+141ed2df0	
+141ed2fb0	
+141ed38e0	
+141eff410	
+141f35f60	SocialEntryPacket_Read
 141f37e50	`scalar_deleting_destructor'
 141f38080	`scalar_deleting_destructor'
 141f3cc00	`scalar_deleting_destructor'
@@ -88,6 +151,7 @@
 141f40110	`scalar_deleting_destructor'
 141f43820	`scalar_deleting_destructor'
 141f45010	`scalar_deleting_destructor'
+141f45210	
 141f45720	`scalar_deleting_destructor'
 141f45c20	`scalar_deleting_destructor'
 141f468b0	`scalar_deleting_destructor'
@@ -96,40 +160,64 @@
 141f47b30	0x355 serializer: u8, u16 len, bytes
 141f48110	`scalar_deleting_destructor'
 141f48560	`scalar_deleting_destructor'
+141f4b800	SimMsg_ReadHeader
 141f68ff0	`scalar_deleting_destructor'
 141f690f0	`scalar_deleting_destructor'
 141f695b0	`scalar_deleting_destructor'
 141f69830	S→C 0x1c8 StartAction reader
 141f6b080	0x1df reader
 141f6b260	S→C 0x64 MoveDirectionUpdate reader
+141f6bd70	BuffAdded_1eb_Read
+141f6c320	BuffRemoved_1ec_Read
+141f6d6a0	SkillTargetAck_1af_Read
+141ff9400	terrain_topology_pick
+14209d300	dungeon door groups
+14209f1d0	dungeon border tile placement
+1420a20f0	dungeon exit wiggle (after the fill)
 1420e3460	`scalar_deleting_destructor'
 1420e3630	`scalar_deleting_destructor'
 1420e38b0	`scalar_deleting_destructor'
 1420e4030	`scalar_deleting_destructor'
 1420e4250	`scalar_deleting_destructor'
 1420e6d40	login session receive loop
+1420e7700	LoginClientHash_Get32
+1420e7c70	ClientLoginSession_SendCredentials_0003
+1420e7f80	ClientLoginSession_SendSteamTicket_0005
+1420e82b0	ClientLoginSession_ProcessPacket (named in Ghidra)
 1420e8313	login packet dispatcher switch (ClientLoginSession?), opcodes 0x02–0x47; opcode 
 1420e8325	login dispatch switch (opcode − 2; byte table 0x1420e9ad4, targets 0x1420e9a64);
 1420ebe30	`scalar_deleting_destructor'
 1420edc20	InitialState CharacterState flags → local player (+0x3eca..+0x3ede)
+1420eea95	
 142102da0	loader for server-delivered encrypted code modules
+142106570	
+142106bb0	Session_HandleAccountMessage
+14210b7b0	Social_AddPartyInvitation
+14210d7b0	Chat_ProcessCommand
 14210efe0	chat sender (0x16, wstring; "@whisper")
-14210faa0	C→S 0x1a5 UseSkill sender (vtable 0x1434e5ae8, body 0x141ecde80); 0x1a7..0x1ad s
-14210fd30	skill target update sender: 0x1a8 (lockstep, relative), 0x1a9 (absolute), 0x1aa 
+14210faa0	Session_SendUseSkill_1a5
+14210fd30	
+14210fec0	Session_SendSkillInputEnd_1ac
+14210ff40	Session_SendSkillReleased_1ad
+142110990	Social_SendPartyInvite
+142110c30	Social_SendPartyDecline
+14211d340	AreaInfo reader
 14211dd30	instance server connect
 14211f6c0	logout routine ("FourLogOut"): 0 / 2 = exit to login / game, 1 = exit to charact
 14211fa00	game-session send (packet->vtable[1](packet, stream)); senders build the packet 
 14211fc50	sends 0x355 ExitReport (once per session)
 142120cf0	instance session receive loop
 142121364	0x1c frame report sender; 0x141f48870 its serializer
-14212ece0	world constructor (+0x661 frame mode; in-game world created with 2 by 0x14100b7e
+14212ac10	instance packet-cipher builder (out, InstanceDetails + 0x38, &is_client), only c
+14212ece0	
 14212fd90	world start (InitialState vfunc +0x1f0): applies all queued packets
 142130360	flush packets scheduled at the current (entity, component, sequence) position
-142130440	lockstep frame playback: speed factor world +0x670 (1.01× with 1 spare frame, 1.
+142130440	
 142130840	world frame drain (world, f32 dt): applies queued simulation packets, updates en
 142134260	simulation packet queue (0x2f4 frame marker, 0x2f5 → world vfunc +0x178)
 142137270	frame-mode entity update loop (component vfunc +0x50, then 0x141e7d970)
 1421497c0	Actor component simulation handler: 0x64 WASD, 0x65, 0x1c8 start action, 0x1c9..
+14214a2be	
 14214a46a	Actor 0x1cc (u16 action id, u8) → Actor vfunc +0x130 (end action?)
 14214a580	Actor 0x1fc (f32, u16) → Actor vfunc +0x100
 14214da90	`scalar_deleting_destructor'
@@ -146,6 +234,7 @@
 142154380	`scalar_deleting_destructor'
 142155ad0	`scalar_deleting_destructor'
 142155e40	`scalar_deleting_destructor'
+1421564a0	
 142156d70	`scalar_deleting_destructor'
 142157470	`scalar_deleting_destructor'
 1421577e0	`scalar_deleting_destructor'
@@ -175,12 +264,17 @@
 14216e410	`scalar_deleting_destructor'
 142170050	`scalar_deleting_destructor'
 1421704a0	`scalar_deleting_destructor'
+142181160	StatsComponent_Read
 1421820a0	Stats component message handler
 142184420	S→C 0x1fe SetPause reader; applied via world vfunc +0x200 0x14168ac70
 1421847d0	`scalar_deleting_destructor'
 142185350	`scalar_deleting_destructor'
 1421861d0	`scalar_deleting_destructor'
+142186980	UseSkillAck_1ae_Read
+142186a60	
 14218a9d0	Actor skill container reader; 0x14218b130 skill list; 0x142188d50 one skill
+142193270	
+142197010	ClientPlatform_Detect
 142197e80	stream read (stream, dst, len)
 142197fb0	stream write (stream, src, len)
 142198110	stream flush (stream, err, force)
@@ -191,11 +285,21 @@
 14219f160	crypto: verify server signature + derive keys ("General Rhoa Failure #3")
 14219f500	builds the two-direction Salsa20 cipher from the key material
 1421a4290	`scalar_deleting_destructor'
+1421bbec0	Sha256_Bytes32
 1421c52f0	HNC bit queue: key material XOR table 0x142f10980 + swaps, Salsa20 pair
 1421c55a0	HNC incoming byte parser ("HNC Protocol Violated")
 1421c5b90	message reader (registry, stream)
+1421d7070	resource_wait_loaded
+1421ee750	StandalonePatcher_GetErrorText
+1423cc3e0	CmdLine_ParseArgs
+1423cd360	
+1425cb9c0	BackendError_GetText
+1425ff350	CharacterPortrait_GetIconPath
 1426acb60	stat container set (container, key, value)
+1426c41a0	EquipmentVisual_Read
 1426f2460	GEAL script interpreter loop
+142716700	CharacterEntries_Read
+142737860	Patcher_RunPatching
 142756350	`scalar_deleting_destructor'
 142756390	`scalar_deleting_destructor'
 142763b60	`scalar_deleting_destructor'
@@ -494,6 +598,7 @@
 142c14448	__uncaught_exceptions
 142c14464	__vcrt_initialize
 142c1448c	__vcrt_uninitialize
+142c144c8	vcrt_getptd
 142c144e4	__vcrt_getptd_noexit
 142c145a4	__vcrt_getptd_noinit
 142c145f4	__vcrt_initialize_ptd
