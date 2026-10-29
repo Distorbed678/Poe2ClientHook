@@ -16,7 +16,9 @@ pub fn redirect(target: &str, register_url: Option<&str>, read_only: bool) -> Op
     }
     let url = register_url?.trim();
     let lower = url.to_ascii_lowercase();
-    if !(lower.starts_with("http://") || lower.starts_with("https://")) || url.chars().any(char::is_control) {
+    if !(lower.starts_with("http://") || lower.starts_with("https://"))
+        || url.chars().any(char::is_control)
+    {
         return None;
     }
     target.contains(ACCOUNT_CREATE_PATH).then(|| url.to_owned())
@@ -32,11 +34,26 @@ mod tests {
     #[test]
     fn only_the_account_page_goes_to_the_private_server() {
         assert_eq!(redirect(OFFICIAL, Some(MINE), false).as_deref(), Some(MINE));
-        assert_eq!(redirect("https://www.pathofexile.com/forum", Some(MINE), false), None);
+        assert_eq!(
+            redirect("https://www.pathofexile.com/forum", Some(MINE), false),
+            None
+        );
         assert_eq!(redirect(OFFICIAL, None, false), None, "not configured");
-        assert_eq!(redirect(OFFICIAL, Some(MINE), true), None, "read-only: nothing is altered");
-        assert_eq!(redirect(OFFICIAL, Some("file:///etc/passwd"), false), None, "web pages only");
-        assert_eq!(redirect(OFFICIAL, Some("http://x/\n"), false).as_deref(), Some("http://x/"), "trimmed");
+        assert_eq!(
+            redirect(OFFICIAL, Some(MINE), true),
+            None,
+            "read-only: nothing is altered"
+        );
+        assert_eq!(
+            redirect(OFFICIAL, Some("file:///etc/passwd"), false),
+            None,
+            "web pages only"
+        );
+        assert_eq!(
+            redirect(OFFICIAL, Some("http://x/\n"), false).as_deref(),
+            Some("http://x/"),
+            "trimmed"
+        );
         assert_eq!(redirect(OFFICIAL, Some("http://a\u{7}b"), false), None);
     }
 }

@@ -51,7 +51,10 @@ pub fn init(register_url: Option<String>) {
     match unsafe { hooker.hook() } {
         Ok(point) => {
             Box::leak(Box::new(point));
-            log::info!("create-account link: opens {}", REGISTER_URL.get().map_or("", String::as_str));
+            log::info!(
+                "create-account link: opens {}",
+                REGISTER_URL.get().map_or("", String::as_str)
+            );
         }
         Err(e) => log::warn!("create-account link: hook failed: {e:?}"),
     }
@@ -66,12 +69,23 @@ unsafe fn wide(p: *const u16) -> Option<String> {
     while n < 4096 && unsafe { *p.add(n) } != 0 {
         n += 1;
     }
-    Some(String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(p, n) }))
+    Some(String::from_utf16_lossy(unsafe {
+        std::slice::from_raw_parts(p, n)
+    }))
 }
 
-unsafe extern "win64" fn on_shell_execute(regs: *mut Registers, original: usize, _: usize) -> usize {
+unsafe extern "win64" fn on_shell_execute(
+    regs: *mut Registers,
+    original: usize,
+    _: usize,
+) -> usize {
     let r = unsafe { &*regs };
-    let (hwnd, op, file, params) = (r.rcx as *mut c_void, r.rdx as *const u16, r.r8 as *const u16, r.r9 as *const u16);
+    let (hwnd, op, file, params) = (
+        r.rcx as *mut c_void,
+        r.rdx as *const u16,
+        r.r8 as *const u16,
+        r.r9 as *const u16,
+    );
     let (dir, show) = unsafe { (r.get_stack(5) as *const u16, r.get_stack(6) as i32) };
     let f: ShellExecuteWFn = unsafe { std::mem::transmute(original) };
     let target = unsafe { wide(file) }.unwrap_or_default();

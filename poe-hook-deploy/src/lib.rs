@@ -190,13 +190,17 @@ pub fn deploy(opts: &DeployOptions) -> Result<DeployReport> {
     report.trusted_servers = trusted;
     let register = match opts.mode {
         Mode::Official => None,
-        Mode::Private => opts
-            .register_url
-            .as_deref()
-            .map(str::trim)
-            .filter(|u| (u.starts_with("http://") || u.starts_with("https://")) && !u.contains(['"', '\\', '\n'])),
+        Mode::Private => opts.register_url.as_deref().map(str::trim).filter(|u| {
+            (u.starts_with("http://") || u.starts_with("https://"))
+                && !u.contains(['"', '\\', '\n'])
+        }),
     };
-    set_hook_key(&cfg, None, "register_url", &format!("\"{}\"", register.unwrap_or("")))?;
+    set_hook_key(
+        &cfg,
+        None,
+        "register_url",
+        &format!("\"{}\"", register.unwrap_or("")),
+    )?;
     if let Some(port) = opts.position_sync_port {
         set_hook_key(
             &cfg,

@@ -333,7 +333,10 @@ mod tests {
         assert!(c.official());
         assert_eq!(c.login_mode, LoginMode::Steam);
         assert!(c.trusted_servers.is_empty());
-        assert!(c.register_url.is_none(), "the official button is never redirected");
+        assert!(
+            c.register_url.is_none(),
+            "the official button is never redirected"
+        );
     }
 
     #[test]
