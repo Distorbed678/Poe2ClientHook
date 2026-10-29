@@ -45,9 +45,9 @@ pub fn apply(style: &mut imgui::Style) {
         (C::PopupBg, with_alpha(SURFACE_2, 0.98)),
         (C::Border, LINE),
         (C::BorderShadow, [0.0; 4]),
-        (C::FrameBg, rgb(0x110b0a, 1.0)),
-        (C::FrameBgHovered, SURFACE_2),
-        (C::FrameBgActive, SURFACE_3),
+        (C::FrameBg, SURFACE_2),
+        (C::FrameBgHovered, SURFACE_3),
+        (C::FrameBgActive, rgb(0x36221f, 1.0)),
         (C::TitleBg, SURFACE_2),
         (C::TitleBgActive, SURFACE_2),
         (C::TitleBgCollapsed, with_alpha(SURFACE_2, 0.8)),
@@ -101,6 +101,8 @@ pub fn apply(style: &mut imgui::Style) {
     style.set_window_border_size(1.0);
     style.set_child_border_size(1.0);
     style.set_popup_border_size(1.0);
+    // Inputs and checkboxes get an outline, so they stand out from the window.
+    style.set_frame_border_size(1.0);
     style.set_frame_padding([8.0, 4.0]);
     style.set_window_padding([10.0, 10.0]);
 }
